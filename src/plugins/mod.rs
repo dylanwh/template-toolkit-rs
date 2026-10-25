@@ -2335,8 +2335,8 @@ fn load_wrap_plugin(context: &Context) -> Value {
 /// A plugin loaded by `[% USE name(args) %]`.  As in Perl (`load($class,
 /// $context)` then `new($context, @args)`) it gets the context; closures
 /// `Fn(&[Value]) -> Result<Value, TemplateException>` that don't need it
-/// implement this directly, and [`with_context`](crate::context::with_context)
-/// adapts closures that do.
+/// implement this directly.  [`Template::define_plugin`](crate::Template::define_plugin)
+/// and `define_plugin_with_context` are the convenient way in.
 pub trait PluginFactory {
     fn load(&self, context: &Context, args: &[Value]) -> Result<Value, TemplateException>;
 }

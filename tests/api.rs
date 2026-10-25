@@ -1,12 +1,13 @@
 //! The registration API: filters, filter factories, plugins, vmethods,
-//! functions and variables, as closures and as trait implementations.
+//! functions and variables, as typed closures, context-aware closures and
+//! trait implementations.
 
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, collections::HashMap, rc::Rc};
 
 use template_toolkit::{
-    context::{with_context, Context},
-    error::{ControlFlow, TemplateException},
-    filters::{Filter, FilterFactoryOutcome, FilterFn},
+    convert::Rest,
+    error::ControlFlow,
+    filters::Filter,
     value::{CallContext, Value},
     Template,
 };
@@ -14,6 +15,13 @@ use template_toolkit::{
 fn render(tt: &Template, src: &str) -> String {
     tt.process_text(src, None)
         .unwrap_or_else(|e| panic!("{src}: {e}"))
+}
+
+fn render_err(tt: &Template, src: &str) -> String {
+    match tt.process_text(src, None) {
+        Ok(out) => panic!("{src}: expected an error, got {out:?}"),
+        Err(e) => e.to_string(),
+    }
 }
 
 /// A filter as a type, with its own configuration.
@@ -31,8 +39,16 @@ impl Filter for Wrap {
 #[test]
 fn filters() {
     let tt = Template::new();
-    tt.define_filter("shout", |t: &str| Ok(t.to_uppercase()))
-        .define_filter(
+    // Closure parameter and return types are inferred.
+    tt.define_filter("shout", |t| t.to_uppercase())
+        .define_filter("nonempty", |t| {
+            if t.is_empty() {
+                Err("empty!".into())
+            } else {
+                Ok(t.to_string())
+            }
+        })
+        .define_filter_impl(
             "brackets",
             Wrap {
                 left: "[",
@@ -41,43 +57,45 @@ fn filters() {
         );
     assert_eq!(render(&tt, "[% 'hi' | shout | brackets %]"), "[HI]");
     assert_eq!(render(&tt, "[% FILTER shout %]block[% END %]"), "BLOCK");
+    assert_eq!(
+        render_err(&tt, "[% '' | nonempty %]"),
+        "undef error - empty!"
+    );
 }
 
 #[test]
 fn filter_factories() {
     let tt = Template::new();
-    // Context-free: configured only by its arguments.
-    tt.define_filter_factory("times", |args: &[Value]| {
-        let n = args.first().map(|v| v.to_int()).unwrap_or(1).max(0) as usize;
-        let f: FilterFn = Rc::new(move |t: &str| Ok(t.repeat(n)));
-        Ok(FilterFactoryOutcome::Ok(f))
+    // Typed arguments; the returned filter is any `Fn(&str) -> String`.
+    tt.define_filter_factory("times", |n: Option<usize>| {
+        let n = n.unwrap_or(2);
+        move |t: &str| t.repeat(n)
     });
-    // Context-aware: reads a template variable when the filter is created.
+    // The context form, as Perl's dynamic filters get: read a variable.
     tt.define_variable("prefix", "> ");
-    tt.define_filter_factory(
-        "quote",
-        with_context(|ctx: &Context, _args: &[Value]| {
-            let prefix = ctx
-                .stash()
-                .get(&Value::from("prefix"), None)?
-                .to_tt_string();
-            let f: FilterFn = Rc::new(move |t: &str| {
-                Ok(t.lines()
-                    .map(|l| format!("{prefix}{l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n"))
-            });
-            Ok(FilterFactoryOutcome::Ok(f))
-        }),
+    tt.define_filter_factory_with_context("quote", |ctx, _args| {
+        let prefix = ctx
+            .stash()
+            .get(&Value::from("prefix"), None)?
+            .to_tt_string();
+        Ok(move |t: &str| {
+            t.lines()
+                .map(|l| format!("{prefix}{l}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+    });
+    assert_eq!(
+        render(&tt, "[% 'ab' | times(3) %] [% 'ab' | times %]"),
+        "ababab abab"
     );
-    assert_eq!(render(&tt, "[% 'ab' | times(3) %]"), "ababab");
     assert_eq!(
         render(&tt, "[% FILTER quote %]one\ntwo[% END %]"),
         "> one\n> two"
     );
-    // Errors thrown by a factory become 'filter' exceptions, as in Perl.
-    tt.define_filter_factory("broken", |_: &[Value]| {
-        Err(ControlFlow::Exception(TemplateException::new("", "no way")))
+    // Errors from a factory become 'filter' exceptions, as in Perl.
+    tt.define_filter_factory("broken", || -> Result<fn(&str) -> String, ControlFlow> {
+        Err("no way".into())
     });
     assert_eq!(
         render(
@@ -91,74 +109,131 @@ fn filter_factories() {
 #[test]
 fn plugins() {
     let tt = Template::new();
-    tt.define_plugin("Greeter", |args: &[Value]| {
-        let greeting = args
-            .first()
-            .map(|v| v.to_tt_string())
-            .unwrap_or_else(|| "Hello".into());
-        Ok(Value::function(move |a: &[Value], _| {
-            Ok(Value::Str(format!(
-                "{greeting}, {}!",
-                a.first().map(|v| v.to_tt_string()).unwrap_or_default()
-            )))
-        }))
+    tt.define_plugin("Greeter", |greeting: Option<String>| {
+        let greeting = greeting.unwrap_or_else(|| "Hello".into());
+        Value::function(move |a: &[Value], _| {
+            Ok(Value::Str(format!("{greeting}, {}!", a[0].to_tt_string())))
+        })
     });
+    tt.define_plugin_with_context("Here", |ctx, _args| {
+        ctx.stash()
+            .get(&Value::from("site"), None)
+            .map(|v| format!("on {}", v.to_tt_string()))
+    });
+    tt.define_variable("site", "example.org");
     assert_eq!(
         render(&tt, "[% USE g = Greeter('Hi') %][% g('Ada') %]"),
         "Hi, Ada!"
     );
+    assert_eq!(render(&tt, "[% USE h = Here %][% h %]"), "on example.org");
 }
 
 #[test]
-fn vmethods_capture_state() {
+fn vmethods() {
     let tt = Template::new();
     let calls = Rc::new(Cell::new(0));
     let counter = Rc::clone(&calls);
-    tt.define_vmethod("scalar", "rot13", move |v: &Value, _: &[Value]| {
+    // Typed: the target value is the first argument; closures may capture state.
+    tt.define_vmethod("scalar", "rot13", move |s: String| {
         counter.set(counter.get() + 1);
-        Ok(Value::Str(
-            v.to_tt_string()
-                .chars()
-                .map(|c| match c {
-                    'a'..='z' => (((c as u8 - b'a') + 13) % 26 + b'a') as char,
-                    'A'..='Z' => (((c as u8 - b'A') + 13) % 26 + b'A') as char,
-                    _ => c,
-                })
-                .collect(),
-        ))
+        s.chars()
+            .map(|c| match c {
+                'a'..='z' => (((c as u8 - b'a') + 13) % 26 + b'a') as char,
+                'A'..='Z' => (((c as u8 - b'A') + 13) % 26 + b'A') as char,
+                _ => c,
+            })
+            .collect::<String>()
     });
-    tt.define_vmethod("list", "total", |v: &Value, _: &[Value]| {
-        let sum: i64 = match v {
-            Value::List(l) => l.borrow().iter().map(|x| x.to_int()).sum(),
-            _ => 0,
-        };
-        Ok(Value::Int(sum))
+    tt.define_vmethod("list", "total", |nums: Vec<f64>| nums.iter().sum::<f64>());
+    tt.define_vmethod(
+        "scalar",
+        "pad",
+        |s: String, width: Option<usize>, fill: Option<String>| {
+            let fill = fill.unwrap_or_else(|| " ".into());
+            let n = width.unwrap_or(8).saturating_sub(s.chars().count());
+            format!("{}{s}", fill.repeat(n))
+        },
+    );
+    // Raw form over (&Value, &[Value]).
+    tt.define_vmethod_impl("hash", "count", |v: &Value, _: &[Value]| match v {
+        Value::Hash(h) => Ok(Value::Int(h.borrow().len() as i64)),
+        _ => Ok(Value::Int(0)),
     });
     assert_eq!(
         render(&tt, "[% s = 'Hello'; s.rot13 %] [% s.rot13.rot13 %]"),
         "Uryyb Hello"
     );
-    assert_eq!(render(&tt, "[% nums = [1, 2, 3]; nums.total %]"), "6");
     assert_eq!(calls.get(), 3);
+    assert_eq!(render(&tt, "[% nums = [1, '2', 3.5]; nums.total %]"), "6.5");
+    assert_eq!(
+        render(&tt, "[% x = 'x' %][[% x.pad(4) %]] [[% x.pad(3, '.') %]]"),
+        "[   x] [..x]"
+    );
+    assert_eq!(render(&tt, "[% h = { a => 1, b => 2 }; h.count %]"), "2");
 }
 
 #[test]
-fn functions_and_variables() {
+fn typed_functions() {
     let tt = Template::new();
-    tt.define_variable("site", "example.org").define_function(
-        "double",
-        |args: &[Value], _: CallContext| {
-            Ok(Value::Int(
-                args.first().map(|v| v.to_int()).unwrap_or(0) * 2,
-            ))
-        },
+    tt.define_function("add", |a: i64, b: i64| a + b)
+        .define_function("greet", |name: Option<String>| {
+            format!("Hello, {}!", name.as_deref().unwrap_or("you"))
+        })
+        .define_function("sum", |label: String, nums: Rest<f64>| {
+            format!("{label}={}", nums.0.iter().sum::<f64>())
+        })
+        .define_function("keys", |h: HashMap<String, Value>| {
+            let mut k: Vec<String> = h.into_keys().collect();
+            k.sort();
+            k
+        })
+        .define_function("is_even", |n: i64| n % 2 == 0)
+        .define_function("checked_div", |a: i64, b: i64| {
+            if b == 0 {
+                Err("division by zero".into())
+            } else {
+                Ok(a / b)
+            }
+        });
+
+    // Perl-style coercion: numeric strings are numbers, missing args are undefined.
+    assert_eq!(render(&tt, "[% add('3', 4) %] [% add(2) %]"), "7 2");
+    assert_eq!(
+        render(&tt, "[% greet('Ada') %] [% greet %]"),
+        "Hello, Ada! Hello, you!"
+    );
+    assert_eq!(render(&tt, "[% sum('total', 1, 2, 3.5) %]"), "total=6.5");
+    assert_eq!(
+        render(&tt, "[% keys({ b => 1, a => 2 }).join(',') %]"),
+        "a,b"
     );
     assert_eq!(
-        render(&tt, "[% site %]: [% double(21) %]"),
-        "example.org: 42"
+        render(&tt, "[% is_even(4) ? 'even' : 'odd' %] [[% is_even(3) %]]"),
+        "even []"
+    );
+    assert_eq!(render(&tt, "[% checked_div(7, 2) %]"), "3");
+    assert_eq!(
+        render_err(&tt, "[% checked_div(1, 0) %]"),
+        "undef error - division by zero"
+    );
+    // Structural mismatches report the argument position and function name.
+    assert_eq!(
+        render_err(&tt, "[% keys([1, 2]) %]"),
+        "undef error - bad argument #1 to `keys`: expected hash, got ARRAY"
+    );
+}
+
+#[test]
+fn raw_functions_and_variables() {
+    let tt = Template::new();
+    tt.define_variable("site", "example.org")
+        .define_function_raw("argc", |args, _cx: CallContext| args.len());
+    assert_eq!(
+        render(&tt, "[% site %]: [% argc(1, 2, 3) %]"),
+        "example.org: 3"
     );
     // Globals persist across process calls; per-call variables override them.
-    let mut vars = std::collections::HashMap::new();
+    let mut vars = HashMap::new();
     vars.insert("site".to_string(), Value::from("override"));
     assert_eq!(
         tt.process_text("[% site %]", Some(vars)).unwrap(),

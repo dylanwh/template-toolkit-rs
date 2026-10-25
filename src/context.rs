@@ -91,56 +91,6 @@ impl From<Document> for BlockDef {
     }
 }
 
-/// Adapts a closure that takes the [`Context`] as its first argument into a
-/// [`FilterFactory`](crate::filters::FilterFactory) or
-/// [`PluginFactory`]; plain closures implement those traits only in their
-/// context-free form.
-///
-/// ```
-/// use template_toolkit::context::{with_context, Context};
-/// use template_toolkit::filters::{FilterFactoryOutcome, FilterFn};
-/// use template_toolkit::value::Value;
-/// use template_toolkit::Template;
-/// use std::rc::Rc;
-///
-/// let tt = Template::new();
-/// tt.define_variable("sep", " | ");
-/// // `| join_with` reads the `sep` template variable through the context.
-/// tt.define_filter_factory("join_with", with_context(|ctx: &Context, _args: &[Value]| {
-///     let sep = ctx.stash().get(&Value::from("sep"), None)?.to_tt_string();
-///     let f: FilterFn = Rc::new(move |t: &str| Ok(t.split_whitespace().collect::<Vec<_>>().join(&sep)));
-///     Ok(FilterFactoryOutcome::Ok(f))
-/// }));
-/// assert_eq!(tt.process_text("[% 'a b c' | join_with %]", None).unwrap(), "a | b | c");
-/// ```
-pub struct WithContext<F>(pub F);
-
-pub fn with_context<F>(f: F) -> WithContext<F> {
-    WithContext(f)
-}
-
-impl<F> crate::filters::FilterFactory for WithContext<F>
-where
-    F: Fn(&Context, &[Value]) -> Result<crate::filters::FilterFactoryOutcome, ControlFlow>,
-{
-    fn create(
-        &self,
-        context: &Context,
-        args: &[Value],
-    ) -> Result<crate::filters::FilterFactoryOutcome, ControlFlow> {
-        (self.0)(context, args)
-    }
-}
-
-impl<F> PluginFactory for WithContext<F>
-where
-    F: Fn(&Context, &[Value]) -> Result<Value, TemplateException>,
-{
-    fn load(&self, context: &Context, args: &[Value]) -> Result<Value, TemplateException> {
-        (self.0)(context, args)
-    }
-}
-
 #[derive(Clone)]
 pub struct Context {
     inner: Rc<RefCell<ContextInner>>,

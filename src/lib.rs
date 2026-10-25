@@ -2,6 +2,7 @@
 
 pub mod constants;
 pub mod context;
+pub mod convert;
 pub mod document;
 pub mod error;
 pub mod filters;
@@ -22,14 +23,15 @@ use std::{cell::RefCell, collections::HashMap, fs, path::Path, rc::Rc};
 use crate::{
     constants::{debug_flags, DebugFlagsInput, CHOMP_NONE},
     context::{BlockDef, Context},
-    error::TemplateException,
-    filters::{Filter, FilterDef, FilterFactory, Filters},
+    convert::{FromArgs, IntoFilter, IntoResult, IntoText, NativeFn},
+    error::{ControlFlow, TemplateException},
+    filters::{Filter, FilterDef, FilterFactory, FilterFactoryOutcome, Filters},
     parser::{ConstantsNamespace, Parser},
     plugins::PluginFactory,
     provider::{IncludePathItem, Provider},
     service::{ErrorSpec, Service},
     stash::Stash,
-    value::{Callable, Value},
+    value::{CallContext, Value},
     vmethods::VMethod,
 };
 
@@ -262,18 +264,68 @@ impl Template {
         self.service.context()
     }
 
-    /// Register a static filter: `[% text | name %]`.  Any
-    /// `Fn(&str) -> Result<String, ControlFlow>` works.
-    pub fn define_filter(&self, name: impl Into<String>, filter: impl Filter + 'static) -> &Self {
+    // Callback registration.  Each kind comes in up to three forms, as in
+    // mlua: closures with typed arguments (`|a: i64, b: String|`, converted
+    // with Perl-style coercion; see [`convert`]), closures that also get the
+    // [`Context`] (`*_with_context`), and types implementing the trait
+    // (`*_impl`).  Closure forms are bounded on `Fn` directly so their
+    // signatures are inferred.
+
+    /// A static filter: `[% text | name %]` or `[% FILTER name %]`.  The
+    /// closure takes the text and returns a `String` or
+    /// `Result<String, ControlFlow>`.
+    pub fn define_filter<F, R>(&self, name: impl Into<String>, filter: F) -> &Self
+    where
+        F: Fn(&str) -> R + 'static,
+        R: IntoText,
+    {
+        self.define_filter_impl(name, move |text: &str| filter(text).into_text())
+    }
+
+    /// A static filter implemented by a type.
+    pub fn define_filter_impl(
+        &self,
+        name: impl Into<String>,
+        filter: impl Filter + 'static,
+    ) -> &Self {
         self.context()
             .define_filter(name, FilterDef::Static(Rc::new(filter)));
         self
     }
 
-    /// Register a dynamic filter, created per use with its arguments:
-    /// `[% text | name(args) %]`.  Wrap a closure in
-    /// [`context::with_context`] if it needs the context.
-    pub fn define_filter_factory(
+    /// A dynamic filter, built per use from its arguments: `[% text |
+    /// name(args) %]`.  The closure takes typed arguments and returns a
+    /// filter (any `Fn(&str) -> String`, or a `Result` of one).
+    pub fn define_filter_factory<A, F>(&self, name: impl Into<String>, factory: F) -> &Self
+    where
+        A: FromArgs + 'static,
+        F: NativeFn<A> + 'static,
+        F::Output: IntoFilter,
+    {
+        let name = name.into();
+        let fname = name.clone();
+        self.define_filter_factory_impl(name, move |args: &[Value]| {
+            convert::call_typed(&factory, args, &fname)?
+                .into_filter()
+                .map(FilterFactoryOutcome::Ok)
+        })
+    }
+
+    /// A dynamic filter whose factory also gets the context, as Perl's do.
+    pub fn define_filter_factory_with_context<F, R>(
+        &self,
+        name: impl Into<String>,
+        factory: F,
+    ) -> &Self
+    where
+        F: Fn(&Context, &[Value]) -> R + 'static,
+        R: IntoFilter,
+    {
+        self.define_filter_factory_impl(name, ContextFilterFactory(factory))
+    }
+
+    /// A dynamic filter factory implemented by a type.
+    pub fn define_filter_factory_impl(
         &self,
         name: impl Into<String>,
         factory: impl FilterFactory + 'static,
@@ -283,8 +335,33 @@ impl Template {
         self
     }
 
-    /// Register a plugin for `[% USE name(args) %]`.
-    pub fn define_plugin(
+    /// A plugin for `[% USE name(args) %]`, built from typed arguments.
+    pub fn define_plugin<A, F>(&self, name: impl Into<String>, plugin: F) -> &Self
+    where
+        A: FromArgs + 'static,
+        F: NativeFn<A> + 'static,
+        F::Output: IntoResult,
+    {
+        let name = name.into();
+        let fname = name.clone();
+        self.define_plugin_impl(name, move |args: &[Value]| {
+            convert::call_typed(&plugin, args, &fname)
+                .and_then(IntoResult::into_result)
+                .map_err(plugin_error)
+        })
+    }
+
+    /// A plugin whose constructor also gets the context, as Perl's do.
+    pub fn define_plugin_with_context<F, R>(&self, name: impl Into<String>, plugin: F) -> &Self
+    where
+        F: Fn(&Context, &[Value]) -> R + 'static,
+        R: IntoResult,
+    {
+        self.define_plugin_impl(name, ContextPlugin(plugin))
+    }
+
+    /// A plugin factory implemented by a type.
+    pub fn define_plugin_impl(
         &self,
         name: impl Into<String>,
         plugin: impl PluginFactory + 'static,
@@ -293,9 +370,27 @@ impl Template {
         self
     }
 
-    /// Register a virtual method on `"scalar"`, `"list"`, `"hash"` or
-    /// `"root"` values: `[% value.name(args) %]`.
-    pub fn define_vmethod(
+    /// A virtual method on `"scalar"`, `"list"`, `"hash"` or `"root"`
+    /// values: `[% value.name(args) %]`.  The value is the closure's first
+    /// argument: `|s: String, width: Option<i64>| ...`.
+    pub fn define_vmethod<A, F>(&self, vtype: &str, name: &str, vmethod: F) -> &Self
+    where
+        A: FromArgs + 'static,
+        F: NativeFn<A> + 'static,
+        F::Output: IntoResult,
+    {
+        let fname = name.to_string();
+        self.define_vmethod_impl(vtype, name, move |target: &Value, args: &[Value]| {
+            let mut all = Vec::with_capacity(args.len() + 1);
+            all.push(target.clone());
+            all.extend_from_slice(args);
+            convert::call_typed(&vmethod, &all, &fname)?.into_result()
+        })
+    }
+
+    /// A virtual method implemented by a type, or a closure over the raw
+    /// `(&Value, &[Value])`.
+    pub fn define_vmethod_impl(
         &self,
         vtype: &str,
         name: &str,
@@ -305,20 +400,34 @@ impl Template {
         self
     }
 
-    /// Define a global template variable, visible to every `process` call.
+    /// A global template variable, visible to every `process` call.
     pub fn define_variable(&self, name: impl Into<String>, value: impl Into<Value>) -> &Self {
         self.context().stash().set_raw(name, value.into());
         self
     }
 
-    /// Define a global function: `[% name(args) %]`.  Any
-    /// `Fn(&[Value], CallContext) -> Result<Value, ControlFlow>` works.
-    pub fn define_function(
-        &self,
-        name: impl Into<String>,
-        function: impl Callable + 'static,
-    ) -> &Self {
-        self.define_variable(name, Value::Function(Rc::new(function)))
+    /// A global function with typed arguments: `[% name(args) %]`.
+    pub fn define_function<A, F>(&self, name: impl Into<String>, function: F) -> &Self
+    where
+        A: FromArgs + 'static,
+        F: NativeFn<A> + 'static,
+        F::Output: IntoResult,
+    {
+        let name = name.into();
+        let fname = name.clone();
+        self.define_function_raw(name, move |args: &[Value], _: CallContext| {
+            convert::call_typed(&function, args, &fname)?.into_result()
+        })
+    }
+
+    /// A global function over the raw argument list and calling context.
+    pub fn define_function_raw<F, R>(&self, name: impl Into<String>, function: F) -> &Self
+    where
+        F: Fn(&[Value], CallContext) -> R + 'static,
+        R: IntoResult,
+    {
+        let f = move |args: &[Value], cx: CallContext| function(args, cx).into_result();
+        self.define_variable(name, Value::Function(Rc::new(f)))
     }
 
     pub fn error(&self) -> Option<TemplateException> {
@@ -401,5 +510,49 @@ impl Template {
             return Err(ex);
         }
         Ok(())
+    }
+}
+
+/// Adapts a `Fn(&Context, &[Value])` closure into a [`FilterFactory`].
+struct ContextFilterFactory<F>(F);
+
+impl<F, R> FilterFactory for ContextFilterFactory<F>
+where
+    F: Fn(&Context, &[Value]) -> R,
+    R: IntoFilter,
+{
+    fn create(
+        &self,
+        context: &Context,
+        args: &[Value],
+    ) -> Result<FilterFactoryOutcome, ControlFlow> {
+        (self.0)(context, args)
+            .into_filter()
+            .map(FilterFactoryOutcome::Ok)
+    }
+}
+
+/// Adapts a `Fn(&Context, &[Value])` closure into a [`PluginFactory`].
+struct ContextPlugin<F>(F);
+
+impl<F, R> PluginFactory for ContextPlugin<F>
+where
+    F: Fn(&Context, &[Value]) -> R,
+    R: IntoResult,
+{
+    fn load(&self, context: &Context, args: &[Value]) -> Result<Value, TemplateException> {
+        (self.0)(context, args).into_result().map_err(plugin_error)
+    }
+}
+
+/// Plugins report a `TemplateException`; other control flow from a plugin
+/// constructor has no meaning there.
+fn plugin_error(cf: ControlFlow) -> TemplateException {
+    match cf {
+        ControlFlow::Exception(e) => e,
+        _ => TemplateException::new(
+            "plugin",
+            "plugin constructor exited with a control directive",
+        ),
     }
 }

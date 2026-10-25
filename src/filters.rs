@@ -13,6 +13,7 @@ use std::{
 
 use crate::{
     context::Context,
+    convert::IntoText,
     error::{ControlFlow, TemplateException},
     regex_cache,
     value::Value,
@@ -31,15 +32,16 @@ pub fn use_rfc3986() {
 /// A filter: transforms the text of a `FILTER` block or `| name` pipe.
 ///
 /// Like a static filter in Perl (`FILTERS => { name => \&sub }`), it sees
-/// only the text.  Any closure `Fn(&str) -> Result<String, ControlFlow>`
-/// is a `Filter`; implement the trait on a type for anything more.
+/// only the text.  Any closure `Fn(&str) -> String` (or returning a
+/// `Result`, see [`IntoText`]) is a `Filter`; implement the trait on a type
+/// for anything more.
 pub trait Filter {
     fn filter(&self, text: &str) -> Result<String, ControlFlow>;
 }
 
-impl<F: Fn(&str) -> Result<String, ControlFlow>> Filter for F {
+impl<F: Fn(&str) -> R, R: IntoText> Filter for F {
     fn filter(&self, text: &str) -> Result<String, ControlFlow> {
-        self(text)
+        self(text).into_text()
     }
 }
 
@@ -50,8 +52,8 @@ pub type FilterFn = Rc<dyn Filter>;
 /// it returns the filter to apply.
 ///
 /// Closures `Fn(&[Value]) -> Result<FilterFactoryOutcome, ControlFlow>`
-/// that don't need the context implement this directly; wrap a closure
-/// taking `(&Context, &[Value])` in [`with_context`](crate::context::with_context).
+/// implement this directly.  [`Template::define_filter_factory`](crate::Template::define_filter_factory)
+/// and `define_filter_factory_with_context` are the convenient way in.
 pub trait FilterFactory {
     fn create(
         &self,
