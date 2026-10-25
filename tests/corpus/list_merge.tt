@@ -1,0 +1,17 @@
+-- test --
+-- name merge skips an undefined argument --
+[% p = [1] %][% FOREACH x = p.merge(nothing) %]<[% x %]>[% END %]
+-- expect --
+<1>
+
+-- test --
+-- name merge skips arguments that aren't lists --
+[% p = [1] %][% FOREACH x = p.merge(2, [3], 'four') %]<[% x %]>[% END %]
+-- expect --
+<1><3>
+
+-- test --
+-- name merge keeps a list's empty items --
+[% p = [1] %][% FOREACH x = p.merge([3, nothing]) %]<[% x %]>[% END %]
+-- expect --
+<1><3><>

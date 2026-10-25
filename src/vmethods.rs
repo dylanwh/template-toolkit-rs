@@ -1326,18 +1326,13 @@ pub fn vmethod_list_import(target: &Value, args: &[Value]) -> Result<Value, Cont
 }
 
 pub fn vmethod_list_merge(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    // `[ @$list, grep defined, map ref eq 'ARRAY' ? @$_ : undef, @_ ]`:
+    // only the (defined) items of plain lists are merged; anything else,
+    // even a blessed list, maps to undef and is dropped.
     let mut out = extract_list_clone(target);
     for arg in args {
         if let Value::List(l) = arg {
             out.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
-        } else if let Value::Object(o) = arg {
-            if let Some(l) = o.as_list() {
-                out.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
-            } else if arg.is_defined() {
-                out.push(arg.clone());
-            }
-        } else if arg.is_defined() {
-            out.push(arg.clone());
         }
     }
     Ok(Value::list(out))
