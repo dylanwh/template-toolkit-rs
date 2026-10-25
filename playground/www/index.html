@@ -1,4 +1,4 @@
-<title>Template Toolkit Playground</title>
+<title>Template Toolkit Rust Playground</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,6 +19,8 @@
     --err: #b3261e;
     --err-bg: #fdecea;
     --ws: #a7b0c0;
+    --rust: #b7410e;
+    --rust-bg: #fbe9e1;
     --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-code: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --code-size: 13.5px;
@@ -28,13 +30,13 @@
     :root:not([data-theme="light"]) {
       --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
       --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
-      --err-bg: #3a1d1b; --ws: #4f586b; color-scheme: dark;
+      --err-bg: #3a1d1b; --ws: #4f586b; --rust: #f08a5d; --rust-bg: #3b2118; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
     --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
-    --err-bg: #3a1d1b; --ws: #4f586b; color-scheme: dark;
+    --err-bg: #3a1d1b; --ws: #4f586b; --rust: #f08a5d; --rust-bg: #3b2118; color-scheme: dark;
   }
 
   html, body { height: 100%; }
@@ -55,8 +57,16 @@
 
   /* Toolbar */
   .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
-  .mark { font-family: var(--font-code); font-weight: 600; font-size: 17px; margin: 0; white-space: nowrap; }
+  .brand { display: grid; gap: 2px; }
+  .mark { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-family: var(--font-code); font-weight: 600; font-size: 17px; margin: 0; }
   .mark .br { color: var(--tag); }
+  .badge {
+    font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--rust); background: var(--rust-bg); border: 1px solid color-mix(in srgb, var(--rust) 35%, transparent);
+    border-radius: 999px; padding: 2px 9px;
+  }
+  .tagline { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .tagline strong { color: var(--rust); font-weight: 600; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; flex: 1 1 auto; }
   .field { display: flex; align-items: center; gap: 6px; }
   .field > span, .label { font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
@@ -126,7 +136,10 @@
 </style>
 
 <header class="bar">
-  <h1 class="mark"><span class="br">[%</span> Template Toolkit Playground <span class="br">%]</span></h1>
+  <div class="brand">
+    <h1 class="mark"><span><span class="br">[%</span> Template Toolkit <span class="br">%]</span></span><span class="badge">Rust port</span></h1>
+    <p class="tagline">A <strong>Rust</strong> reimplementation of Perl's Template Toolkit 3.009, running in your browser as WebAssembly.</p>
+  </div>
   <div class="controls">
     <label class="field" for="example"><span>Example</span>
       <select id="example"></select>
@@ -188,7 +201,7 @@
 </main>
 
 <footer>
-  <span id="version">Template Toolkit 3.009, Rust port, running in your browser as WebAssembly.</span>
+  <span id="version">Rust port of Template Toolkit 3.009 (WebAssembly).</span>
   <span>Set variables in the template with <code>[% name = 'value' %]</code>. <code>PERL</code> blocks and file includes are not available here.</span>
 </footer>
 
@@ -439,7 +452,7 @@ try {
   const bytes = await (await fetch("pkg/tt_playground_bg.wasm")).arrayBuffer();
   await __wbg_init({ module_or_path: bytes });
   ready = true;
-  $("version").textContent = `${version()}, running in your browser as WebAssembly.`;
+  $("version").textContent = `${version()}, compiled to WebAssembly.`;
   run();
 } catch (e) {
   status.className = "status err";
