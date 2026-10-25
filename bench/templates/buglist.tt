@@ -1,0 +1,28 @@
+[%# A bug list: a table row per bug through a BLOCK, a MACRO, filters and
+  # vmethods.  Written for this benchmark. -%]
+[% MACRO badge(status, resolution) BLOCK -%]
+<span class="status status-[% status | lower %]">[% status %][% IF resolution %] [% resolution %][% END %]</span>
+[%- END -%]
+[% BLOCK row -%]
+<tr class="[% loop.odd ? 'odd' : 'even' %][% ' closed' UNLESS bug.is_open %]">
+  <td><a href="show_bug.cgi?id=[% bug.id %]">[% bug.id %]</a></td>
+  <td>[% bug.product | html %] :: [% bug.component | html %]</td>
+  <td>[% badge(bug.status, bug.resolution) %]</td>
+  <td><a href="mailto:[% bug.assignee.email | uri %]">[% bug.assignee.name | html %]</a></td>
+  <td title="[% bug.summary | html %]">[% IF bug.summary.length > 60 %][% bug.summary.substr(0, 57) | html %]...[% ELSE %][% bug.summary | html %][% END %]</td>
+  <td>[% bug.keywords.sort.join(', ') | html %]</td>
+  <td class="num">[% bug.votes %]</td>
+  <td>[% bug.changed %]</td>
+</tr>
+[%- END -%]
+<h1>[% title | html %]</h1>
+<table class="buglist">
+  <thead><tr>[% FOREACH col IN columns %]<th class="col-[% col.name %]">[% col.title | html %]</th>[% END %]</tr></thead>
+  <tbody>
+[% FOREACH bug IN bugs %]
+[% PROCESS row %]
+[% END %]
+  </tbody>
+</table>
+[% open = 0; FOREACH b IN bugs; open = open + 1 IF b.is_open; END -%]
+<p>[% bugs.size %] bugs, [% open %] open.</p>

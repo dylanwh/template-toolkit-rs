@@ -1,0 +1,4807 @@
+{
+   "bugs" : [
+      {
+         "assignee" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "changed" : "2026-10-19 11:20",
+         "component" : "Layout",
+         "id" : 100007,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Core",
+         "reporter" : {
+            "email" : "fran@example.org",
+            "name" : "Frances Allen"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "the render encoding on",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-07 03:40",
+         "component" : "Preferences",
+         "id" : 100014,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "crash",
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "with menu crash reload image large in the of when of encoding opening slow on",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-15 03:36",
+         "component" : "Preferences",
+         "id" : 100021,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "dataloss",
+            "access"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "render \"quoted\" of link scroll large text",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-19 03:48",
+         "component" : "Preferences",
+         "id" : 100028,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "tab render timeout image leak crash jank during link opening",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-03 03:56",
+         "component" : "Preferences",
+         "id" : 100035,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "dataloss",
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "incorrect sync opening link memory menu in encoding update menu of after dialog the broken",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-03 07:52",
+         "component" : "Preferences",
+         "id" : 100042,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "after of sync text when incorrect worker of after fails leak of slow update",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 23:32",
+         "component" : "Graphics",
+         "id" : 100049,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "slow during worker in \"quoted\" text to scroll \"quoted\" text",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-19 15:28",
+         "component" : "Graphics",
+         "id" : 100056,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "sec-low",
+            "access"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "VERIFIED",
+         "summary" : "on menu scroll encoding incorrect reload fails",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 11:16",
+         "component" : "Graphics",
+         "id" : 100063,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "link render slow text slow &",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-11 11:20",
+         "component" : "Preferences",
+         "id" : 100070,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "jank fails timeout dialog when fails to broken when memory",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-07 19:36",
+         "component" : "Preferences",
+         "id" : 100077,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "link dialog encoding update when incorrect jank update <script> update",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-23 07:44",
+         "component" : "Preferences",
+         "id" : 100084,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "leak opening reload text to update encoding update sync image leak text after &",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-15 03:16",
+         "component" : "Graphics",
+         "id" : 100091,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "lost with large fails to crash \"quoted\" & to memory worker render jank broken",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-27 19:56",
+         "component" : "Preferences",
+         "id" : 100098,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "perf",
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "update timeout incorrect sync during reload update",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-11 11:44",
+         "component" : "Preferences",
+         "id" : 100105,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "jank scroll sync crash encoding crash \"quoted\" render to crash",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-19 19:04",
+         "component" : "Preferences",
+         "id" : 100112,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "slow broken reload on \"quoted\" memory to focus after memory",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-07 07:00",
+         "component" : "Preferences",
+         "id" : 100119,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "after on slow incorrect large text",
+         "votes" : 27
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-03 07:00",
+         "component" : "Graphics",
+         "id" : 100126,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "crash",
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "crash \"quoted\" with slow scroll the opening",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 19:56",
+         "component" : "Graphics",
+         "id" : 100133,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "to in reload opening the memory",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 15:44",
+         "component" : "Preferences",
+         "id" : 100140,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "tab in <script> incorrect link crash",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-19 07:36",
+         "component" : "Graphics",
+         "id" : 100147,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "access",
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "incorrect worker text leak focus large text",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 11:24",
+         "component" : "Graphics",
+         "id" : 100154,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "leak image link update <script> incorrect reload focus menu with lost broken when opening",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-15 15:00",
+         "component" : "Preferences",
+         "id" : 100161,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "encoding crash when focus link opening",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-23 19:44",
+         "component" : "Graphics",
+         "id" : 100168,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "sync on worker opening slow memory",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-19 07:12",
+         "component" : "Preferences",
+         "id" : 100175,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "worker with sync with worker incorrect",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-23 07:28",
+         "component" : "Graphics",
+         "id" : 100182,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "perf",
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "during jank scroll menu during to opening lost image \"quoted\" fails link & menu with",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 03:32",
+         "component" : "Graphics",
+         "id" : 100189,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "dataloss",
+            "intermittent"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "dialog tab scroll reload focus slow in encoding broken link of",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-07 15:36",
+         "component" : "Preferences",
+         "id" : 100196,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "large broken <script> of the broken",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-11 23:32",
+         "component" : "Graphics",
+         "id" : 100203,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "intermittent",
+            "crash"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "opening lost & \"quoted\" & worker image",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-27 23:00",
+         "component" : "Graphics",
+         "id" : 100210,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "sync image large memory when image lost render lost of",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-15 23:32",
+         "component" : "Graphics",
+         "id" : 100217,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "intermittent",
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "crash to of slow focus tab dialog worker broken timeout focus reload image reload of",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-23 19:48",
+         "component" : "Graphics",
+         "id" : 100224,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "leak & <script> with large crash",
+         "votes" : 5
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-23 03:40",
+         "component" : "Preferences",
+         "id" : 100231,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "sec-low",
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "VERIFIED",
+         "summary" : "broken <script> scroll jank render timeout in the focus reload text slow crash leak opening",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-23 15:12",
+         "component" : "Preferences",
+         "id" : 100238,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "menu & worker opening leak image",
+         "votes" : 29
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-27 15:32",
+         "component" : "Graphics",
+         "id" : 100245,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "tab opening <script> memory encoding text to & timeout with",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 19:44",
+         "component" : "Graphics",
+         "id" : 100252,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "crash slow during to scroll the in when scroll to render",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-15 11:28",
+         "component" : "Preferences",
+         "id" : 100259,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "to focus when on after dialog tab & to fails",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-15 03:36",
+         "component" : "Preferences",
+         "id" : 100266,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "dataloss",
+            "access"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "on lost in encoding broken lost focus",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-19 15:28",
+         "component" : "Preferences",
+         "id" : 100273,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "sync focus sync scroll \"quoted\" in",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 15:12",
+         "component" : "Graphics",
+         "id" : 100280,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "the image reload render lost fails tab memory when incorrect",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-27 15:40",
+         "component" : "Graphics",
+         "id" : 100287,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "intermittent",
+            "access"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "VERIFIED",
+         "summary" : "incorrect after image <script> text tab focus the with after opening when broken slow dialog",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-07 19:40",
+         "component" : "Graphics",
+         "id" : 100294,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "to incorrect worker focus tab text <script> opening jank scroll after update timeout scroll",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-15 07:32",
+         "component" : "Preferences",
+         "id" : 100301,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "menu scroll \"quoted\" in encoding with timeout on timeout during <script> scroll worker &",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-11 23:28",
+         "component" : "Graphics",
+         "id" : 100308,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "crash",
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "of large render timeout update large fails reload render jank crash when image leak text",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-23 03:40",
+         "component" : "Graphics",
+         "id" : 100315,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "link scroll <script> with sync scroll the memory after in menu opening slow scroll",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-23 19:20",
+         "component" : "Preferences",
+         "id" : 100322,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "timeout dialog worker image encoding with sync fails link render",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-23 19:28",
+         "component" : "Preferences",
+         "id" : 100329,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "access",
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "text the fails sync dialog to on slow text timeout & lost update leak update",
+         "votes" : 29
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-11 19:16",
+         "component" : "Preferences",
+         "id" : 100336,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "link image after scroll lost in after & \"quoted\" with",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-15 11:24",
+         "component" : "Preferences",
+         "id" : 100343,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "crash",
+            "access"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "scroll menu text when during lost memory",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-19 15:56",
+         "component" : "Preferences",
+         "id" : 100350,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "lost broken encoding on leak in lost fails jank of the broken <script> image",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 19:56",
+         "component" : "Graphics",
+         "id" : 100357,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "broken timeout text tab of leak crash to in tab update",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-27 23:04",
+         "component" : "Preferences",
+         "id" : 100364,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "after with link fails large text encoding incorrect the incorrect reload scroll slow opening",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 19:48",
+         "component" : "Graphics",
+         "id" : 100371,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "reload memory the memory after dialog encoding update encoding update menu update the render",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-15 19:36",
+         "component" : "Preferences",
+         "id" : 100378,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "menu & encoding fails large of menu memory the with",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-23 19:48",
+         "component" : "Preferences",
+         "id" : 100385,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "<script> & reload focus after with tab during sync opening",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-07 11:36",
+         "component" : "Preferences",
+         "id" : 100392,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "lost crash \"quoted\" dialog reload fails jank render menu text",
+         "votes" : 15
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-07 03:32",
+         "component" : "Preferences",
+         "id" : 100399,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "intermittent",
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "render worker text worker opening sync image to fails worker in menu opening reload dialog",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-11 15:28",
+         "component" : "Preferences",
+         "id" : 100406,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "timeout dialog large in timeout fails worker on jank render encoding broken <script> render",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-27 07:36",
+         "component" : "Graphics",
+         "id" : 100413,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "worker text large with timeout update encoding render timeout opening",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-15 15:00",
+         "component" : "Graphics",
+         "id" : 100420,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "leak crash tab text <script> during \"quoted\" in slow with",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-07 23:32",
+         "component" : "Graphics",
+         "id" : 100427,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "crash",
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "opening \"quoted\" & timeout text lost of reload broken jank focus slow render when crash",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-27 07:28",
+         "component" : "Graphics",
+         "id" : 100434,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "crash",
+            "dataloss"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "update worker scroll large dialog the dialog",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 23:44",
+         "component" : "Graphics",
+         "id" : 100441,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "after scroll the with menu incorrect slow focus tab update",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-11 11:56",
+         "component" : "Graphics",
+         "id" : 100448,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "sec-low",
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "crash to update sync focus large focus large of reload &",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-23 23:36",
+         "component" : "Preferences",
+         "id" : 100455,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "tab with jank crash when render to during slow memory when focus encoding memory",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-27 15:00",
+         "component" : "Graphics",
+         "id" : 100462,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "access",
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "in jank of the scroll leak during",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 11:56",
+         "component" : "Graphics",
+         "id" : 100469,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "when image <script> image sync update timeout focus to on link scroll slow of",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-23 15:40",
+         "component" : "Preferences",
+         "id" : 100476,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "encoding broken after fails menu opening",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-11 03:32",
+         "component" : "Graphics",
+         "id" : 100483,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "perf",
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "VERIFIED",
+         "summary" : "incorrect link memory to dialog to crash when focus timeout focus",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-27 07:28",
+         "component" : "Preferences",
+         "id" : 100490,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "tab opening large update slow update after dialog slow scroll jank incorrect the update",
+         "votes" : 29
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 03:20",
+         "component" : "Graphics",
+         "id" : 100497,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "perf",
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "opening lost text after of encoding in <script> on encoding incorrect",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-07 19:56",
+         "component" : "Preferences",
+         "id" : 100504,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "of lost opening after with sync crash menu image the opening timeout memory link in",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-19 19:28",
+         "component" : "Preferences",
+         "id" : 100511,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "perf",
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "VERIFIED",
+         "summary" : "crash after in jank incorrect menu memory",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-03 07:28",
+         "component" : "Preferences",
+         "id" : 100518,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "sync during \"quoted\" of sync of the incorrect the image jank image tab fails",
+         "votes" : 15
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-15 15:00",
+         "component" : "Graphics",
+         "id" : 100525,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "access",
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "text the focus link update link with",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 07:20",
+         "component" : "Graphics",
+         "id" : 100532,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "access",
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "VERIFIED",
+         "summary" : "scroll timeout opening after in slow of",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-03 03:40",
+         "component" : "Graphics",
+         "id" : 100539,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "large fails slow during when on",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-27 11:36",
+         "component" : "Preferences",
+         "id" : 100546,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "perf",
+            "access"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "dialog slow focus lost & reload crash to on worker on large & <script> update",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-07 23:32",
+         "component" : "Preferences",
+         "id" : 100553,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "the focus lost render <script> crash",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-15 15:24",
+         "component" : "Graphics",
+         "id" : 100560,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "regression",
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "in tab scroll after image slow fails",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-07 19:16",
+         "component" : "Graphics",
+         "id" : 100567,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "jank & worker crash when in",
+         "votes" : 27
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-03 07:16",
+         "component" : "Preferences",
+         "id" : 100574,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "access",
+            "intermittent"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "opening after incorrect to opening link image slow dialog encoding memory",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-03 19:20",
+         "component" : "Graphics",
+         "id" : 100581,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "link fails leak with sync incorrect slow broken lost update link image link with",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-23 11:44",
+         "component" : "Preferences",
+         "id" : 100588,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "leak incorrect worker image tab during link opening timeout scroll",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-03 07:44",
+         "component" : "Preferences",
+         "id" : 100595,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "leak dialog when of large in worker broken link text menu with reload update",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-07 15:24",
+         "component" : "Graphics",
+         "id" : 100602,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "crash",
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "opening when during jank on link during <script> in \"quoted\" & worker of the fails",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-19 07:28",
+         "component" : "Graphics",
+         "id" : 100609,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "sec-low",
+            "crash"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "dialog large incorrect jank of <script> with sync of menu focus \"quoted\" focus encoding on",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 23:24",
+         "component" : "Graphics",
+         "id" : 100616,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "worker on <script> focus \"quoted\" focus lost dialog timeout &",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-19 07:00",
+         "component" : "Graphics",
+         "id" : 100623,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "dataloss",
+            "sec-low"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "fails lost during \"quoted\" memory tab focus worker opening sync image to memory sync image",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-11 23:56",
+         "component" : "Graphics",
+         "id" : 100630,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "leak & timeout text when broken worker render worker render",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-11 03:24",
+         "component" : "Graphics",
+         "id" : 100637,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "menu in link with menu crash jank in encoding memory worker fails tab during",
+         "votes" : 29
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-19 15:56",
+         "component" : "Preferences",
+         "id" : 100644,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "<script> update reload image menu text slow text large in lost crash timeout dialog",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 03:32",
+         "component" : "Graphics",
+         "id" : 100651,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "leak of tab update menu memory menu memory after crash the incorrect lost of",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-27 03:40",
+         "component" : "Preferences",
+         "id" : 100658,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "sec-low",
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "in large crash jank with \"quoted\" memory",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-07 03:04",
+         "component" : "Preferences",
+         "id" : 100665,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "crash",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "of reload on <script> of <script> focus",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-07 19:52",
+         "component" : "Preferences",
+         "id" : 100672,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "large dialog slow image to fails timeout & menu text",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-27 07:20",
+         "component" : "Preferences",
+         "id" : 100679,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "dataloss",
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "in to scroll <script> dialog \"quoted\" incorrect the during tab of",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-19 19:24",
+         "component" : "Graphics",
+         "id" : 100686,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "slow of tab on reload crash",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-11 11:12",
+         "component" : "Preferences",
+         "id" : 100693,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "intermittent",
+            "access"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "on link opening link broken tab &",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-27 23:08",
+         "component" : "Preferences",
+         "id" : 100700,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "regression",
+            "dataloss"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "render \"quoted\" memory jank focus <script> broken encoding crash menu fails",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 11:20",
+         "component" : "Graphics",
+         "id" : 100707,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "tab focus slow & to on sync render \"quoted\" focus lost broken \"quoted\" with",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-27 11:56",
+         "component" : "Preferences",
+         "id" : 100714,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "access",
+            "sec-low"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "fails leak broken worker broken timeout during",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-07 19:24",
+         "component" : "Preferences",
+         "id" : 100721,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "access",
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "VERIFIED",
+         "summary" : "memory timeout focus encoding in tab &",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-27 15:36",
+         "component" : "Preferences",
+         "id" : 100728,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "perf",
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "VERIFIED",
+         "summary" : "crash worker incorrect worker broken slow crash jank during large incorrect",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-23 07:36",
+         "component" : "Graphics",
+         "id" : 100735,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "intermittent",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "in \"quoted\" & menu with leak opening \"quoted\" render after fails large update large fails",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-11 15:36",
+         "component" : "Graphics",
+         "id" : 100742,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "after image sync scroll to fails leak on jank broken",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-27 23:16",
+         "component" : "Graphics",
+         "id" : 100749,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "crash",
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "VERIFIED",
+         "summary" : "memory when crash after focus the incorrect large update jank crash after scroll large of",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 19:28",
+         "component" : "Graphics",
+         "id" : 100756,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "tab render \"quoted\" scroll the during",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-03 03:48",
+         "component" : "Preferences",
+         "id" : 100763,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "crash",
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "VERIFIED",
+         "summary" : "broken jank render large dialog lost scroll",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-11 07:56",
+         "component" : "Preferences",
+         "id" : 100770,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "perf",
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "& large memory \"quoted\" scroll lost render leak render leak broken",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-15 23:52",
+         "component" : "Graphics",
+         "id" : 100777,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "reload scroll jank of the broken link crash worker broken",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-27 23:32",
+         "component" : "Graphics",
+         "id" : 100784,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "menu update lost scroll tab in large update slow during",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-19 07:16",
+         "component" : "Graphics",
+         "id" : 100791,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "access",
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "opening the crash \"quoted\" during link broken",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-11 19:08",
+         "component" : "Graphics",
+         "id" : 100798,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "sec-low",
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "update encoding of leak during worker on <script> image link during",
+         "votes" : 5
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 15:32",
+         "component" : "Preferences",
+         "id" : 100805,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "jank dialog jank of jank update after on lost broken menu crash to scroll",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-03 19:28",
+         "component" : "Graphics",
+         "id" : 100812,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "access",
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "with tab of tab opening the image link focus slow broken",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-03 07:52",
+         "component" : "Preferences",
+         "id" : 100819,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "the memory <script> in timeout render",
+         "votes" : 45
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-03 23:52",
+         "component" : "Graphics",
+         "id" : 100826,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "<script> during to scroll slow update tab opening to update",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-11 15:00",
+         "component" : "Graphics",
+         "id" : 100833,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "sec-low",
+            "regression"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "dialog encoding render reload broken large dialog jank fails reload incorrect when image link fails",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-27 11:12",
+         "component" : "Graphics",
+         "id" : 100840,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "slow memory <script> fails timeout of",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-23 23:52",
+         "component" : "Preferences",
+         "id" : 100847,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "leak of after broken timeout during",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-19 19:24",
+         "component" : "Graphics",
+         "id" : 100854,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "worker focus lost text reload on link fails reload in tab in sync memory",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-07 19:20",
+         "component" : "Preferences",
+         "id" : 100861,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "intermittent",
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "broken <script> in leak render after during menu opening slow broken <script> on the image",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-19 19:16",
+         "component" : "Preferences",
+         "id" : 100868,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "sync incorrect \"quoted\" & encoding on tab image worker focus",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-15 23:44",
+         "component" : "Preferences",
+         "id" : 100875,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "when with worker image encoding broken leak incorrect jank dialog when text link of",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-15 19:56",
+         "component" : "Graphics",
+         "id" : 100882,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "\"quoted\" memory reload opening jank update <script> focus sync focus leak scroll sync text",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-07 23:16",
+         "component" : "Preferences",
+         "id" : 100889,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "incorrect leak memory when on tab of worker with tab with",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-11 11:08",
+         "component" : "Graphics",
+         "id" : 100896,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "sync with menu opening tab image",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-27 23:28",
+         "component" : "Preferences",
+         "id" : 100903,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "regression",
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "INVALID",
+         "status" : "VERIFIED",
+         "summary" : "render \"quoted\" memory \"quoted\" incorrect sync focus timeout of large broken",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-23 11:56",
+         "component" : "Graphics",
+         "id" : 100910,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "large on sync crash menu scroll worker & jank scroll sync of leak with",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 07:28",
+         "component" : "Preferences",
+         "id" : 100917,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "the on to & worker broken",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-03 23:52",
+         "component" : "Graphics",
+         "id" : 100924,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "slow update <script> focus jank incorrect jank memory menu crash",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 15:12",
+         "component" : "Graphics",
+         "id" : 100931,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "timeout on slow scroll \"quoted\" image menu fails leak fails",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-11 15:32",
+         "component" : "Graphics",
+         "id" : 100938,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "VERIFIED",
+         "summary" : "text timeout update after image menu fails reload memory worker & sync with encoding image",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-23 07:20",
+         "component" : "Graphics",
+         "id" : 100945,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "crash",
+            "intermittent"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "incorrect leak image leak dialog slow crash reload opening link scroll \"quoted\" in sync dialog",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-15 15:20",
+         "component" : "Graphics",
+         "id" : 100952,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "large crash reload in timeout with after on the image",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-11 23:28",
+         "component" : "Graphics",
+         "id" : 100959,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "timeout memory \"quoted\" opening after crash after fails reload crash",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-19 23:40",
+         "component" : "Graphics",
+         "id" : 100966,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "leak text encoding incorrect sync in to dialog large &",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-23 03:36",
+         "component" : "Graphics",
+         "id" : 100973,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "menu render worker focus when fails leak broken \"quoted\" with <script> broken slow incorrect",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-07 07:56",
+         "component" : "Preferences",
+         "id" : 100980,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "after memory large during encoding crash",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-15 15:56",
+         "component" : "Graphics",
+         "id" : 100987,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "regression",
+            "access"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "crash encoding update sync crash jank opening the in tab opening jank incorrect reload with",
+         "votes" : 27
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-11 23:20",
+         "component" : "Graphics",
+         "id" : 100994,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "crash",
+            "dataloss"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "image worker focus tab of reload during",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-07 07:44",
+         "component" : "Graphics",
+         "id" : 101001,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "crash",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "dialog jank focus encoding focus link in",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 07:40",
+         "component" : "Graphics",
+         "id" : 101008,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "menu of worker dialog after text large of sync in",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-11 03:52",
+         "component" : "Graphics",
+         "id" : 101015,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "\"quoted\" scroll <script> render <script> dialog \"quoted\" memory reload broken link fails lost on",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-15 15:24",
+         "component" : "Preferences",
+         "id" : 101022,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "tab opening slow scroll reload memory",
+         "votes" : 43
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-23 07:00",
+         "component" : "Graphics",
+         "id" : 101029,
+         "is_open" : 0,
+         "keywords" : [
+            "sec-low",
+            "perf",
+            "sec-low"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "opening slow during large & worker memory lost memory sync with lost in jank broken",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-15 23:04",
+         "component" : "Graphics",
+         "id" : 101036,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "slow memory <script> image \"quoted\" render the memory link &",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-15 11:52",
+         "component" : "Graphics",
+         "id" : 101043,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "reload text to crash slow broken",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-19 23:04",
+         "component" : "Preferences",
+         "id" : 101050,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "when & sync during reload dialog",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 19:48",
+         "component" : "Graphics",
+         "id" : 101057,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "link on large focus jank render menu during menu fails reload text tab &",
+         "votes" : 27
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-15 15:40",
+         "component" : "Preferences",
+         "id" : 101064,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "when of to broken after focus leak of sync on to in link memory",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-19 19:28",
+         "component" : "Graphics",
+         "id" : 101071,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "slow on slow render menu in after focus link of leak update leak update",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-07 03:36",
+         "component" : "Preferences",
+         "id" : 101078,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "sec-low",
+            "dataloss"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "with to text slow in large on",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 15:12",
+         "component" : "Preferences",
+         "id" : 101085,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "jank memory reload image menu of link opening menu on tab broken the update",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 07:16",
+         "component" : "Graphics",
+         "id" : 101092,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "timeout crash to fails lost on tab opening after fails",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-11 15:08",
+         "component" : "Graphics",
+         "id" : 101099,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "reload & sync memory large text link image \"quoted\" during",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-03 03:00",
+         "component" : "Graphics",
+         "id" : 101106,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "when with leak text encoding memory \"quoted\" incorrect \"quoted\" render worker crash <script> dialog",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-23 11:00",
+         "component" : "Preferences",
+         "id" : 101113,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "menu with timeout broken encoding incorrect jank broken tab on",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-15 15:44",
+         "component" : "Preferences",
+         "id" : 101120,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "tab dialog after broken the on",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-11 19:56",
+         "component" : "Graphics",
+         "id" : 101127,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "link scroll reload on \"quoted\" broken menu image tab render the crash after opening",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-27 19:48",
+         "component" : "Preferences",
+         "id" : 101134,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "crash",
+            "intermittent"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "dialog reload on sync dialog leak text timeout crash reload in \"quoted\" update reload on",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 23:40",
+         "component" : "Preferences",
+         "id" : 101141,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "the of \"quoted\" fails the incorrect",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-15 11:08",
+         "component" : "Graphics",
+         "id" : 101148,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "link update tab crash after fails",
+         "votes" : 17
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-27 11:04",
+         "component" : "Preferences",
+         "id" : 101155,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "intermittent",
+            "intermittent"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "with <script> of to in <script> of jank on link image after render \"quoted\" focus",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-23 11:16",
+         "component" : "Preferences",
+         "id" : 101162,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "access",
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "text leak dialog link opening worker of encoding on after render after during leak with",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-07 03:12",
+         "component" : "Preferences",
+         "id" : 101169,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "perf",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "VERIFIED",
+         "summary" : "with slow incorrect link memory <script> scroll tab focus jank focus worker image tab image",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-19 19:40",
+         "component" : "Preferences",
+         "id" : 101176,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "when crash leak of large opening jank text sync update",
+         "votes" : 11
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-19 19:16",
+         "component" : "Preferences",
+         "id" : 101183,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "access",
+            "perf"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "INVALID",
+         "status" : "VERIFIED",
+         "summary" : "focus timeout memory menu in the crash",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-15 19:48",
+         "component" : "Preferences",
+         "id" : 101190,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "<script> broken to update \"quoted\" image lost fails to focus",
+         "votes" : 19
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-07 07:12",
+         "component" : "Preferences",
+         "id" : 101197,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "crash",
+            "access"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "in timeout on link with link image sync text encoding crash",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-23 23:48",
+         "component" : "Graphics",
+         "id" : 101204,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "encoding of encoding image slow dialog when with leak image",
+         "votes" : 35
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-19 19:16",
+         "component" : "Graphics",
+         "id" : 101211,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "sync during large dialog encoding text",
+         "votes" : 29
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-19 03:24",
+         "component" : "Preferences",
+         "id" : 101218,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "access",
+            "intermittent"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "during <script> & menu incorrect timeout text to of worker in <script> on reload fails",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-15 07:32",
+         "component" : "Preferences",
+         "id" : 101225,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "dataloss",
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "dialog timeout incorrect worker crash reload of sync opening encoding during",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-10-19 19:12",
+         "component" : "Graphics",
+         "id" : 101232,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "encoding broken the memory reload broken tab update slow memory when crash \"quoted\" crash",
+         "votes" : 21
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-15 11:28",
+         "component" : "Preferences",
+         "id" : 101239,
+         "is_open" : 0,
+         "keywords" : [
+            "regression",
+            "crash",
+            "regression"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "memory menu scroll sync scroll the crash",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-27 03:48",
+         "component" : "Preferences",
+         "id" : 101246,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "regression",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "RESOLVED",
+         "summary" : "memory \"quoted\" on reload render timeout of the with lost with menu opening worker image",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-06-15 03:04",
+         "component" : "Preferences",
+         "id" : 101253,
+         "is_open" : 0,
+         "keywords" : [
+            "intermittent",
+            "regression",
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "FIXED",
+         "status" : "RESOLVED",
+         "summary" : "focus to broken slow fails worker text",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-10-15 15:56",
+         "component" : "Preferences",
+         "id" : 101260,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "sec-low",
+            "regression"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "render \"quoted\" incorrect after memory lost text after dialog after during",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-03 15:36",
+         "component" : "Graphics",
+         "id" : 101267,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "regression",
+            "intermittent"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "DUPLICATE",
+         "status" : "VERIFIED",
+         "summary" : "incorrect encoding during to in tab fails",
+         "votes" : 25
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-06-07 11:08",
+         "component" : "Graphics",
+         "id" : 101274,
+         "is_open" : 1,
+         "keywords" : [
+            "intermittent"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "large scroll the text \"quoted\" dialog",
+         "votes" : 33
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-15 19:12",
+         "component" : "Preferences",
+         "id" : 101281,
+         "is_open" : 1,
+         "keywords" : [
+            "regression"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "tab with large with sync opening large opening \"quoted\" on",
+         "votes" : 27
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-23 03:48",
+         "component" : "Preferences",
+         "id" : 101288,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "link update tab memory large focus to memory to of",
+         "votes" : 3
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-23 23:00",
+         "component" : "Preferences",
+         "id" : 101295,
+         "is_open" : 1,
+         "keywords" : [
+            "access"
+         ],
+         "priority" : "P5",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "menu with the & timeout & menu on to fails lost fails large render",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-27 19:32",
+         "component" : "Graphics",
+         "id" : 101302,
+         "is_open" : 0,
+         "keywords" : [
+            "access",
+            "sec-low",
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "focus tab of reload incorrect timeout incorrect jank opening large crash",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-03 23:36",
+         "component" : "Preferences",
+         "id" : 101309,
+         "is_open" : 1,
+         "keywords" : [
+            "dataloss"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "after broken tab dialog large image to render menu dialog menu broken link dialog",
+         "votes" : 9
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-15 11:52",
+         "component" : "Graphics",
+         "id" : 101316,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "access",
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "VERIFIED",
+         "summary" : "during lost with after with encoding with lost update to crash",
+         "votes" : 7
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-06-19 07:36",
+         "component" : "Preferences",
+         "id" : 101323,
+         "is_open" : 1,
+         "keywords" : [
+            "perf"
+         ],
+         "priority" : "P4",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "timeout memory large & to crash",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "ada@example.org",
+            "name" : "Ada Lovelace"
+         },
+         "changed" : "2026-02-27 03:24",
+         "component" : "Graphics",
+         "id" : 101330,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P5",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "resolution" : "",
+         "status" : "ASSIGNED",
+         "summary" : "slow dialog encoding of sync render",
+         "votes" : 39
+      },
+      {
+         "assignee" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "changed" : "2026-02-03 23:52",
+         "component" : "Preferences",
+         "id" : 101337,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "dataloss",
+            "intermittent"
+         ],
+         "priority" : "P3",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "alan@example.org",
+            "name" : "Alan Turing"
+         },
+         "resolution" : "WORKSFORME",
+         "status" : "RESOLVED",
+         "summary" : "image encoding dialog reload focus the crash leak dialog after render",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-15 19:20",
+         "component" : "Graphics",
+         "id" : 101344,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "access",
+            "access"
+         ],
+         "priority" : "P4",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "FIXED",
+         "status" : "VERIFIED",
+         "summary" : "scroll when of reload update link text link crash leak text",
+         "votes" : 37
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-27 15:56",
+         "component" : "Preferences",
+         "id" : 101351,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "large on timeout crash <script> on",
+         "votes" : 23
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-23 07:40",
+         "component" : "Graphics",
+         "id" : 101358,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "sec-low",
+            "sec-low"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "VERIFIED",
+         "summary" : "of \"quoted\" opening leak crash leak render",
+         "votes" : 13
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-10-11 03:44",
+         "component" : "Graphics",
+         "id" : 101365,
+         "is_open" : 0,
+         "keywords" : [
+            "perf",
+            "dataloss",
+            "perf"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "focus link scroll reload broken timeout in worker crash sync update",
+         "votes" : 31
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-02-11 07:32",
+         "component" : "Preferences",
+         "id" : 101372,
+         "is_open" : 1,
+         "keywords" : [
+            "sec-low"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "REOPENED",
+         "summary" : "link during to fails menu render when opening encoding opening \"quoted\" of menu update",
+         "votes" : 41
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-03 03:12",
+         "component" : "Graphics",
+         "id" : 101379,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "sec-low",
+            "regression"
+         ],
+         "priority" : "P3",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "INVALID",
+         "status" : "RESOLVED",
+         "summary" : "image reload render when update <script> on link opening leak with",
+         "votes" : 1
+      },
+      {
+         "assignee" : {
+            "email" : "ewd@example.org",
+            "name" : "Edsger Dijkstra"
+         },
+         "changed" : "2026-10-11 07:52",
+         "component" : "Preferences",
+         "id" : 101386,
+         "is_open" : 1,
+         "keywords" : [
+            "crash"
+         ],
+         "priority" : "P2",
+         "product" : "Infrastructure",
+         "reporter" : {
+            "email" : "liskov@example.org",
+            "name" : "Barbara Liskov"
+         },
+         "resolution" : "",
+         "status" : "NEW",
+         "summary" : "jank update after update lost opening <script> with \"quoted\" opening encoding image jank text",
+         "votes" : 47
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-06-19 23:32",
+         "component" : "Graphics",
+         "id" : 101393,
+         "is_open" : 0,
+         "keywords" : [
+            "dataloss",
+            "dataloss",
+            "perf"
+         ],
+         "priority" : "P2",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "VERIFIED",
+         "summary" : "render reload broken after scroll lost of the crash encoding text tab render link incorrect",
+         "votes" : 49
+      },
+      {
+         "assignee" : {
+            "email" : "grace@example.org",
+            "name" : "Grace Hopper"
+         },
+         "changed" : "2026-02-19 23:24",
+         "component" : "Graphics",
+         "id" : 101400,
+         "is_open" : 0,
+         "keywords" : [
+            "crash",
+            "crash",
+            "dataloss"
+         ],
+         "priority" : "P1",
+         "product" : "Toolkit",
+         "reporter" : {
+            "email" : "knuth@example.org",
+            "name" : "Donald Knuth"
+         },
+         "resolution" : "WONTFIX",
+         "status" : "RESOLVED",
+         "summary" : "during sync image large crash tab fails",
+         "votes" : 39
+      }
+   ],
+   "columns" : [
+      {
+         "name" : "id",
+         "title" : "ID"
+      },
+      {
+         "name" : "product",
+         "title" : "Product"
+      },
+      {
+         "name" : "status",
+         "title" : "Status"
+      },
+      {
+         "name" : "assignee",
+         "title" : "Assignee"
+      },
+      {
+         "name" : "summary",
+         "title" : "Summary"
+      },
+      {
+         "name" : "keywords",
+         "title" : "Keywords"
+      },
+      {
+         "name" : "votes",
+         "title" : "Votes"
+      },
+      {
+         "name" : "changed",
+         "title" : "Changed"
+      }
+   ],
+   "title" : "Bugs changed this week"
+}

@@ -1,0 +1,17 @@
+[%# Plain-text notification mail per bug: string vmethods, interpolation
+  # and text filters.  Written for this benchmark. -%]
+[% FOREACH bug IN bugs -%]
+From: [% bug.reporter.name %] <[% bug.reporter.email %]>
+To: [% bug.assignee.email.lower %]
+Subject: [Bug [% bug.id %]] [% bug.summary.ucfirst | truncate(60) %]
+
+[% FILTER indent('    ') -%]
+Bug $bug.id in "${bug.product} :: ${bug.component}" is now [% bug.status.lower %].
+[% IF bug.resolution %]Resolution: [% bug.resolution.lower.ucfirst %][% END %]
+Keywords: [% bug.keywords.size ? bug.keywords.unique.sort.join(', ') : 'none' %]
+Summary words: [% bug.summary.split(' ').size %], longest: [% longest = ''; FOREACH w IN bug.summary.split(' '); longest = w IF w.length > longest.length; END; longest %]
+Link: https://bugs.example.org/show_bug.cgi?id=[% bug.id | uri %]&changed=[% bug.changed | uri %]
+[%- END %]
+
+-- [% bug.priority.replace('P', 'priority ') %], [% bug.votes %] vote[% 's' UNLESS bug.votes == 1 %]
+[% END -%]

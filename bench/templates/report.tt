@@ -1,0 +1,31 @@
+[%# A summary report: counting into hashes, sorting, SWITCH and format.
+  # Written for this benchmark. -%]
+[% by_product = {}; by_person = {}; votes = {} -%]
+[% FOREACH bug IN bugs -%]
+[%   key = bug.product _ '/' _ bug.status;
+     by_product.$key = (by_product.$key || 0) + 1;
+     who = bug.assignee.name;
+     by_person.$who = by_person.$who || [];
+     by_person.$who.push(bug.id);
+     votes.$who = (votes.$who || 0) + bug.votes -%]
+[% END -%]
+[% title | upper %]
+[% '=' | repeat(title.length) %]
+
+By product and status:
+[% FOREACH key IN by_product.keys.sort -%]
+[%   parts = key.split('/') -%]
+  [% parts.0 | format('%-16s') %][% parts.1 | format('%-10s') %][% by_product.$key | format('%4d') %]  [% '#' | repeat(by_product.$key) %]
+[% END %]
+By assignee (most votes first):
+[% FOREACH who IN votes.keys.sort -%]
+[%   n = by_person.$who.size -%]
+  [% who | format('%-20s') %] [% n | format('%3d') %] bugs [% votes.$who | format('%5d') %] votes  [%
+     SWITCH n %][% CASE [1, 2, 3] %]light[% CASE [4, 5, 6, 7, 8, 9] %]normal[% CASE %]heavy[% END %]
+    [% by_person.$who.nsort.slice(0, 4).join(', ') %]
+[% END %]
+Priorities:
+[% FOREACH p IN ['P1', 'P2', 'P3', 'P4', 'P5'] -%]
+[%   count = 0; FOREACH bug IN bugs; count = count + 1 IF bug.priority == p; END -%]
+  [% p %]: [% count %] ([% count * 100 / bugs.size | format('%.1f') %]%)
+[% END -%]
