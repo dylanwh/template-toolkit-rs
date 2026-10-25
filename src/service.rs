@@ -236,10 +236,8 @@ impl Service {
                 let keys: Vec<&str> = map.keys().map(|k| k.as_str()).collect();
                 if let Some(matched) = error.select_handler(&keys) {
                     map.get(matched)?.as_str()
-                } else if let Some(def) = map.get("default") {
-                    def.as_str()
                 } else {
-                    return None;
+                    map.get("default")?.as_str()
                 }
             }
         };

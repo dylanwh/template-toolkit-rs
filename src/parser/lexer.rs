@@ -5,6 +5,7 @@ use regex::RegexBuilder;
 use crate::{
     constants::{CHOMP_ALL, CHOMP_COLLAPSE, CHOMP_GREEDY, CHOMP_NONE},
     parser::grammar_tables::lookup_lextable,
+    regex_cache,
 };
 
 #[derive(Debug, Clone)]
@@ -71,20 +72,25 @@ pub fn build_splitter_regex(
     end: &str,
     outline: Option<&str>,
 ) -> Result<regex::Regex, String> {
-    if let Some(out) = outline {
-        let pat = format!(r"\A(.*?)(?:(?:^{out}(.*?)(?:\n|\z))|(?:{start}(.*?){end}))");
+    let (pat, multi_line) = match outline {
+        Some(out) => (
+            format!(r"\A(.*?)(?:(?:^{out}(.*?)(?:\n|\z))|(?:{start}(.*?){end}))"),
+            true,
+        ),
+        None => (format!(r"\A(.*?)(?:{start}(.*?){end})"), false),
+    };
+    let flags = regex_cache::Flags {
+        multi_line,
+        dot_matches_new_line: true,
+    };
+    regex_cache::regex_with(&pat, flags).ok_or_else(|| {
+        // Recompile uncached to report why the pattern is invalid.
         RegexBuilder::new(&pat)
-            .multi_line(true)
-            .dot_matches_new_line(true)
             .build()
-            .map_err(|e| e.to_string())
-    } else {
-        let pat = format!(r"\A(.*?)(?:{start}(.*?){end})");
-        RegexBuilder::new(&pat)
-            .dot_matches_new_line(true)
-            .build()
-            .map_err(|e| e.to_string())
-    }
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default()
+    })
 }
 
 fn chomp_char_to_mode(c: char) -> Option<usize> {
@@ -328,8 +334,12 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
     Ok(tokens)
 }
 
+// Perl's pattern bounds the text run at {1,3000} to dodge its regex
+// recursion limit.  The regex crate would expand that into 3000 copies of
+// the sub-NFA (~20ms to build), and an unbounded run only merges what Perl
+// emits as adjacent text chunks, so `+` gives identical output.
 static INTERP_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"((?:\\.|[^\$]){1,3000})|(\$(?:(?:\{([^\}]*)\})|([\w\.]+)))")
+    RegexBuilder::new(r"((?:\\.|[^\$])+)|(\$(?:(?:\{([^\}]*)\})|([\w\.]+)))")
         .dot_matches_new_line(true)
         .build()
         .unwrap()

@@ -5,11 +5,15 @@ use std::{
     io::Write,
     path::PathBuf,
     rc::Rc,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        LazyLock,
+    },
 };
 
 use crate::{
     error::{ControlFlow, TemplateException},
+    regex_cache,
     value::Value,
 };
 
@@ -252,9 +256,9 @@ impl Filters {
                     .map(|v| v.to_tt_string())
                     .unwrap_or_default();
                 Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
-                    if let Ok(re) = regex::Regex::new(&search) {
+                    if let Some(re) = regex_cache::regex(&search) {
                         Ok(re.replace_all(text, replace.as_str()).into_owned())
-                    } else if let Ok(fre) = fancy_regex::Regex::new(&search) {
+                    } else if let Some(fre) = regex_cache::fancy(&search) {
                         Ok(fre.replace_all(text, replace.as_str()).into_owned())
                     } else {
                         Ok(text.replace(&search, &replace))
@@ -268,9 +272,9 @@ impl Filters {
                     .map(|v| v.to_tt_string())
                     .unwrap_or_default();
                 Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
-                    if let Ok(re) = regex::Regex::new(&search) {
+                    if let Some(re) = regex_cache::regex(&search) {
                         Ok(re.replace_all(text, "").into_owned())
-                    } else if let Ok(fre) = fancy_regex::Regex::new(&search) {
+                    } else if let Some(fre) = regex_cache::fancy(&search) {
                         Ok(fre.replace_all(text, "").into_owned())
                     } else {
                         Ok(text.replace(&search, ""))
@@ -392,8 +396,15 @@ pub fn html_entity_filter(text: &str) -> String {
     out
 }
 
+static PARA_SPLIT_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?:\r?\n){2,}").unwrap());
+static PARA_BREAK_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(\r?\n){2,}").unwrap());
+static LINE_BREAK_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(\r?\n)").unwrap());
+
 pub fn html_paragraph(text: &str) -> String {
-    let re = regex::Regex::new(r"(?:\r?\n){2,}").unwrap();
+    let re = &*PARA_SPLIT_RE;
     // Perl split(/(?:\r?\n){2,}/, $text) drops trailing empty fields
     let mut parts: Vec<&str> = re.split(text).collect();
     while parts.len() > 1 && parts.last() == Some(&"") {
@@ -406,13 +417,13 @@ pub fn html_paragraph(text: &str) -> String {
 }
 
 pub fn html_para_break(text: &str) -> String {
-    let re = regex::Regex::new(r"(\r?\n){2,}").unwrap();
-    re.replace_all(text, "$1<br />$1<br />$1").into_owned()
+    PARA_BREAK_RE
+        .replace_all(text, "$1<br />$1<br />$1")
+        .into_owned()
 }
 
 pub fn html_line_break(text: &str) -> String {
-    let re = regex::Regex::new(r"(\r?\n)").unwrap();
-    re.replace_all(text, "<br />$1").into_owned()
+    LINE_BREAK_RE.replace_all(text, "<br />$1").into_owned()
 }
 
 fn is_rfc_safe(b: u8, rfc2732: bool, is_url: bool) -> bool {

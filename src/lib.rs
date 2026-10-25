@@ -9,6 +9,7 @@ pub mod iterator;
 pub mod parser;
 pub mod plugins;
 pub mod provider;
+pub mod regex_cache;
 pub mod service;
 pub mod stash;
 pub mod strftime;

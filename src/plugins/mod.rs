@@ -5,16 +5,19 @@ use std::{
     os::unix::fs::MetadataExt,
     path::Path,
     rc::Rc,
-    sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
+    sync::{LazyLock, Mutex},
 };
+
+static NON_WORD_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\s*\W+\s*").unwrap());
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     context::Context,
     error::{ControlFlow, TemplateException},
     filters::{html_filter, perl_sprintf, uri_filter, url_filter, FilterDef, FilterFn},
     iterator::TemplateIterator,
-    strftime,
+    regex_cache, strftime,
     value::{format_perl_float, CallContext, MethodResult, TemplateObject, Value},
     view::View,
     vmethods::{vmethod_scalar_split, vmethod_scalar_substr, GLOBAL_VMETHODS},
@@ -342,7 +345,7 @@ fn load_datafile_plugin(args: &[Value]) -> Result<Value, TemplateException> {
         .map_err(|e| TemplateException::new("datafile", format!("{}: {}", filename, e)))?;
 
     let split_pat = format!(r"\s*{}\s*", regex::escape(&delim));
-    let split_re = regex::Regex::new(&split_pat).unwrap();
+    let split_re = regex_cache::regex(&split_pat).expect("escaped delimiter is a valid regex");
 
     let mut fields: Option<Vec<String>> = None;
     let mut results = Vec::new();
@@ -1499,8 +1502,8 @@ impl StringPlugin {
             Value::List(l_rc) => l_rc.borrow().clone(),
             other => {
                 let s = other.to_tt_string();
-                let re = regex::Regex::new(r"\s*\W+\s*").unwrap();
-                re.split(&s)
+                NON_WORD_RE
+                    .split(&s)
                     .filter(|p| !p.is_empty())
                     .map(|p| Value::Str(p.to_string()))
                     .collect()
@@ -1601,7 +1604,7 @@ impl TemplateObject for StringPlugin {
             "pop" => {
                 if let Some(strip) = args.first().filter(|v| v.is_truthy()) {
                     let pat = format!("{}$", strip.to_tt_string());
-                    if let Ok(re) = regex::Regex::new(&pat) {
+                    if let Some(re) = regex_cache::regex(&pat) {
                         let mut t = self.text.borrow_mut();
                         *t = re.replace(&t, "").into_owned();
                     }
@@ -1611,7 +1614,7 @@ impl TemplateObject for StringPlugin {
             "shift" => {
                 if let Some(strip) = args.first().filter(|v| v.is_truthy()) {
                     let pat = format!("^{}", strip.to_tt_string());
-                    if let Ok(re) = regex::Regex::new(&pat) {
+                    if let Some(re) = regex_cache::regex(&pat) {
                         let mut t = self.text.borrow_mut();
                         *t = re.replace(&t, "").into_owned();
                     }
@@ -1809,7 +1812,7 @@ impl TemplateObject for StringPlugin {
                         .map(|v| v.to_tt_string())
                         .unwrap_or_default();
                     let mut t = self.text.borrow_mut();
-                    if let Ok(re) = regex::Regex::new(&search) {
+                    if let Some(re) = regex_cache::regex(&search) {
                         *t = re.replace_all(&t, replace.as_str()).into_owned();
                     } else {
                         *t = t.replace(&search, &replace);
@@ -1824,7 +1827,7 @@ impl TemplateObject for StringPlugin {
                     .map(|v| v.to_tt_string())
                     .unwrap_or_default();
                 let mut t = self.text.borrow_mut();
-                if let Ok(re) = regex::Regex::new(&search) {
+                if let Some(re) = regex_cache::regex(&search) {
                     *t = re.replace_all(&t, "").into_owned();
                 } else {
                     *t = t.replace(&search, "");
@@ -1841,7 +1844,7 @@ impl TemplateObject for StringPlugin {
             }
             "search" => {
                 let pat = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
-                let matched = regex::Regex::new(&pat)
+                let matched = regex_cache::regex(&pat)
                     .map(|re| re.is_match(&self.text.borrow()))
                     .unwrap_or(false);
                 MethodResult::Ok(Value::Int(if matched { 1 } else { 0 }))

@@ -2,16 +2,19 @@ use std::{
     cell::RefCell,
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    sync::LazyLock,
 };
 
-use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
 
 use crate::{
     error::ControlFlow,
+    regex_cache,
     stash::is_private_enabled,
     value::{CallContext, MethodResult, Value},
 };
+
+static WHITESPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
 
 pub type VMethodFn = fn(&Value, &[Value]) -> Result<Value, ControlFlow>;
 
@@ -283,9 +286,9 @@ pub fn text_dquote(s: &str) -> String {
 }
 
 pub fn text_search(text: &str, pattern: &str) -> bool {
-    if let Ok(re) = Regex::new(pattern) {
+    if let Some(re) = regex_cache::regex(pattern) {
         re.is_match(text)
-    } else if let Ok(re) = FancyRegex::new(pattern) {
+    } else if let Some(re) = regex_cache::fancy(pattern) {
         re.is_match(text).unwrap_or(false)
     } else {
         text.contains(pattern)
@@ -293,7 +296,7 @@ pub fn text_search(text: &str, pattern: &str) -> bool {
 }
 
 pub fn text_match(text: &str, pattern: &str, global: bool) -> Value {
-    if let Ok(re) = Regex::new(pattern) {
+    if let Some(re) = regex_cache::regex(pattern) {
         let num_groups = re.captures_len();
         let mut results = Vec::new();
         if global {
@@ -330,7 +333,7 @@ pub fn text_match(text: &str, pattern: &str, global: bool) -> Value {
         } else {
             Value::list(results)
         }
-    } else if let Ok(re) = FancyRegex::new(pattern) {
+    } else if let Some(re) = regex_cache::fancy(pattern) {
         let num_groups = re.captures_len();
         let mut results = Vec::new();
         if global {
@@ -431,7 +434,7 @@ pub fn text_replace(text: &str, pattern: &str, replace: &str, global: bool) -> S
         found
     };
 
-    if let Ok(re) = Regex::new(pattern) {
+    if let Some(re) = regex_cache::regex(pattern) {
         if !has_backrefs {
             if global {
                 let mut out = String::with_capacity(text.len());
@@ -470,7 +473,7 @@ pub fn text_replace(text: &str, pattern: &str, replace: &str, global: bool) -> S
             out.push_str(&text[last_end..]);
             return out;
         }
-    } else if let Ok(re) = FancyRegex::new(pattern) {
+    } else if let Some(re) = regex_cache::fancy(pattern) {
         let mut out = String::with_capacity(text.len());
         let mut last_end = 0;
         for caps in re.captures_iter(text).flatten() {
@@ -503,7 +506,7 @@ pub fn text_split(text: &str, split_pat: Option<&str>, limit: Option<i64>) -> Ve
         if trimmed.is_empty() {
             return Vec::new();
         }
-        let re = Regex::new(r"\s+").unwrap();
+        let re = &*WHITESPACE_RE;
         if lim > 0 {
             re.splitn(trimmed, lim as usize)
                 .map(|s| Value::Str(s.to_string()))
@@ -542,7 +545,7 @@ pub fn text_split(text: &str, split_pat: Option<&str>, limit: Option<i64>) -> Ve
                 return text.chars().map(|c| Value::Str(c.to_string())).collect();
             }
         }
-        if let Ok(re) = Regex::new(pat) {
+        if let Some(re) = regex_cache::regex(pat) {
             if lim > 0 {
                 re.splitn(text, lim as usize)
                     .map(|s| Value::Str(s.to_string()))
@@ -1045,11 +1048,9 @@ pub fn vmethod_list_hash(target: &Value, args: &[Value]) -> Result<Value, Contro
     let list_clone = extract_list_clone(target);
     if let Some(arg) = args.first() {
         if arg.is_defined() {
-            let mut count = arg.to_int();
             let mut m = HashMap::new();
-            for item in list_clone {
+            for (count, item) in (arg.to_int()..).zip(list_clone) {
                 m.insert(count.to_string(), item);
-                count += 1;
             }
             return Ok(Value::hash(m));
         }

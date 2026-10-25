@@ -666,8 +666,8 @@ impl Provider {
             if bytes.starts_with(&[0x00, 0x00, 0xFE, 0xFF]) {
                 let rest = &bytes[4..];
                 let mut chars = Vec::with_capacity(rest.len() / 4);
-                for chunk in rest.chunks_exact(4) {
-                    let cp = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                for chunk in rest.as_chunks::<4>().0 {
+                    let cp = u32::from_be_bytes(*chunk);
                     if let Some(c) = char::from_u32(cp) {
                         chars.push(c);
                     }
@@ -677,8 +677,8 @@ impl Provider {
             if bytes.starts_with(&[0xFF, 0xFE, 0x00, 0x00]) {
                 let rest = &bytes[4..];
                 let mut chars = Vec::with_capacity(rest.len() / 4);
-                for chunk in rest.chunks_exact(4) {
-                    let cp = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                for chunk in rest.as_chunks::<4>().0 {
+                    let cp = u32::from_le_bytes(*chunk);
                     if let Some(c) = char::from_u32(cp) {
                         chars.push(c);
                     }
