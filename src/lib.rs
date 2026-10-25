@@ -31,7 +31,7 @@ use crate::{
     filters::{Filter, FilterDef, FilterFactory, FilterFactoryOutcome, Filters},
     parser::{ConstantsNamespace, Parser},
     plugins::PluginFactory,
-    provider::{IncludePathItem, Provider},
+    provider::{IncludePathItem, Provider, TemplateSource},
     service::{ErrorSpec, Service},
     stash::Stash,
     value::{CallContext, Value},
@@ -48,7 +48,9 @@ pub struct Template {
 
 #[bon::bon]
 impl Template {
-    #[builder(start_fn = builder, finish_fn = build)]
+    // The state module is public so callers can name partly built builders
+    // (`TemplateBuildBuilder<SetIncludePath<SetTemplateSource>>`).
+    #[builder(start_fn = builder, finish_fn = build, state_mod(vis = "pub"))]
     pub fn build(
         // Parser options
         start_tag: Option<String>,
@@ -79,6 +81,9 @@ impl Template {
         #[builder(default = false)] tolerant: bool,
         unicode: Option<bool>,
         encoding: Option<String>,
+        /// Where the default provider reads templates from instead of the
+        /// filesystem (ignored with `load_templates`).
+        template_source: Option<Rc<dyn TemplateSource>>,
         load_templates: Option<Vec<Rc<RefCell<Provider>>>>,
         prefix_map: Option<HashMap<String, Vec<Rc<RefCell<Provider>>>>>,
 
@@ -183,6 +188,7 @@ impl Template {
                             .maybe_unicode(unicode)
                             .maybe_encoding(encoding)
                             .parser(Rc::new(RefCell::new(parser)))
+                            .maybe_source(template_source)
                             .build()
                             .map_err(|e| TemplateException::new("file", e))?;
                         vec![Rc::new(RefCell::new(prov))]

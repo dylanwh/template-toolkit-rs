@@ -65,6 +65,80 @@ pub enum LoadResult {
     Error(TemplateException),
 }
 
+/// A template's content and modification stamp, as read from a
+/// [`TemplateSource`].
+#[derive(Debug, Clone)]
+pub struct TemplateContent {
+    pub bytes: Vec<u8>,
+    /// When the template last changed, in seconds since the epoch, or any
+    /// other number that changes when it does (a version or generation).
+    /// 0 means "unknown": the provider then caches the template without
+    /// ever checking it again.
+    pub modified: u64,
+}
+
+/// Where a [`Provider`] reads templates from: the filesystem by default
+/// ([`FileSource`]), or anything that can look a template up by path, such
+/// as an embedded asset table, a database or an edge key-value store.
+///
+/// This is the Rust counterpart of overriding `_template_modified` and
+/// `_template_content` in a `Template::Provider` subclass.  The provider
+/// keeps everything else: it joins each `INCLUDE_PATH` entry and the
+/// template name into the path it asks for (`dir/name`, so include-path
+/// entries act as key prefixes), applies ABSOLUTE and RELATIVE, falls back
+/// to DEFAULT, and caches the compiled template, re-checking `modified` at
+/// most once every STAT_TTL seconds.
+pub trait TemplateSource {
+    /// The template at `path`, or `Ok(None)` if there is none, in which
+    /// case the provider tries the next include path.  An `Err` stops the
+    /// search with a `file` error (unless the provider is TOLERANT).
+    fn load(&self, path: &str) -> Result<Option<TemplateContent>, String>;
+
+    /// The modification stamp of the template at `path`, or `None` if
+    /// there is none.  The provider calls this to see whether a cached
+    /// template is stale (and before reading a COMPILE_DIR copy); the
+    /// default implementation loads the template to find out.
+    fn modified(&self, path: &str) -> Option<u64> {
+        self.load(path).ok().flatten().map(|c| c.modified)
+    }
+
+    /// Whether `path` names a directory, which is an error rather than a
+    /// missing template.  Only filesystem-like sources need this.
+    fn is_dir(&self, _path: &str) -> bool {
+        false
+    }
+}
+
+impl std::fmt::Debug for dyn TemplateSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TemplateSource")
+    }
+}
+
+/// Templates in files: the default [`TemplateSource`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FileSource;
+
+impl TemplateSource for FileSource {
+    fn load(&self, path: &str) -> Result<Option<TemplateContent>, String> {
+        let Some(modified) = file_mtime(Path::new(path)) else {
+            return Ok(None);
+        };
+        match fs::read(path) {
+            Ok(bytes) => Ok(Some(TemplateContent { bytes, modified })),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    fn modified(&self, path: &str) -> Option<u64> {
+        file_mtime(Path::new(path))
+    }
+
+    fn is_dir(&self, path: &str) -> bool {
+        Path::new(path).is_dir()
+    }
+}
+
 #[derive(Debug, Clone)]
 struct CacheSlot {
     name: String,
@@ -90,6 +164,7 @@ pub struct Provider {
     pub stat_ttl: Option<u64>,
     pub max_dirs: Option<usize>,
     pub parser: Rc<RefCell<Parser>>,
+    pub source: Rc<dyn TemplateSource>,
     cache_order: RefCell<Vec<String>>,
     lookup: RefCell<HashMap<String, CacheSlot>>,
     notfound: RefCell<HashMap<String, u64>>,
@@ -115,6 +190,8 @@ impl Provider {
         stat_ttl: Option<u64>,
         max_dirs: Option<usize>,
         parser: Option<Rc<RefCell<Parser>>>,
+        /// Where templates are read from (default: the filesystem).
+        source: Option<Rc<dyn TemplateSource>>,
     ) -> Result<Self, String> {
         let dlim = delimiter.unwrap_or_else(|| ":".to_string());
         let paths = if let Some(items) = include_path {
@@ -158,6 +235,7 @@ impl Provider {
             stat_ttl,
             max_dirs,
             parser: parser_rc,
+            source: source.unwrap_or_else(|| Rc::new(FileSource)),
             cache_order: RefCell::new(Vec::new()),
             lookup: RefCell::new(HashMap::new()),
             notfound: RefCell::new(HashMap::new()),
@@ -350,7 +428,8 @@ impl Provider {
             };
             for dir in paths {
                 let candidate = Path::new(&dir).join(name);
-                if candidate.is_file() {
+                let key = candidate.to_string_lossy();
+                if !self.source.is_dir(&key) && self.source.modified(&key).is_some() {
                     target_path = Some(candidate);
                     break;
                 }
@@ -360,18 +439,18 @@ impl Provider {
         let Some(path) = target_path else {
             return LoadResult::Declined;
         };
-
-        if !path.is_file() {
+        let key = path.to_string_lossy();
+        if self.source.is_dir(&key) {
             return LoadResult::Declined;
         }
 
-        match fs::read(&path) {
-            Ok(bytes) => {
+        match self.source.load(&key) {
+            Ok(Some(content)) => {
                 // Note: Provider::load() in TT2 reads raw bytes without BOM decoding,
                 // or decodes according to ENCODING if set
-                let content = self.decode_bytes(&bytes, false);
-                LoadResult::Ok(content)
+                LoadResult::Ok(self.decode_bytes(&content.bytes, false))
             }
+            Ok(None) => LoadResult::Declined,
             Err(e) => {
                 if self.tolerant {
                     LoadResult::Declined
@@ -390,7 +469,7 @@ impl Provider {
             return doc;
         }
 
-        let load_mtime = mtime.or_else(|| file_mtime(Path::new(name))).unwrap_or(0);
+        let load_mtime = mtime.or_else(|| self.source.modified(name)).unwrap_or(0);
         let now = current_unix_time();
         let alias = doc.name();
 
@@ -467,7 +546,7 @@ impl Provider {
             }
         }
 
-        if Path::new(path).is_dir() {
+        if self.source.is_dir(path) {
             return if self.tolerant {
                 FetchResult::Declined
             } else {
@@ -478,10 +557,14 @@ impl Provider {
             };
         }
 
-        let uncompiled_mtime = file_mtime(Path::new(path));
+        // A COMPILE_DIR copy is used if its mtime matches the source's,
+        // which takes a `modified` check before reading the source.
         let comp_file = self.compiled_filename(path);
-
-        if let (Some(src_mtime), Some(ref cpath)) = (uncompiled_mtime, &comp_file) {
+        if let Some(ref cpath) = comp_file {
+            let Some(src_mtime) = self.source.modified(path) else {
+                self.notfound.borrow_mut().insert(path.to_string(), now);
+                return FetchResult::Declined;
+            };
             if let Some(c_mtime) = file_mtime(cpath) {
                 if c_mtime == src_mtime {
                     if let Ok(json_str) = fs::read_to_string(cpath) {
@@ -497,13 +580,12 @@ impl Provider {
             }
         }
 
-        let Some(src_mtime) = uncompiled_mtime else {
-            self.notfound.borrow_mut().insert(path.to_string(), now);
-            return FetchResult::Declined;
-        };
-
-        let bytes = match fs::read(path) {
-            Ok(b) => b,
+        let content = match self.source.load(path) {
+            Ok(Some(content)) => content,
+            Ok(None) => {
+                self.notfound.borrow_mut().insert(path.to_string(), now);
+                return FetchResult::Declined;
+            }
             Err(e) => {
                 self.notfound.borrow_mut().insert(path.to_string(), now);
                 return if self.tolerant {
@@ -514,7 +596,8 @@ impl Provider {
             }
         };
 
-        let text = self.decode_bytes(&bytes, self.unicode);
+        let src_mtime = content.modified;
+        let text = self.decode_bytes(&content.bytes, self.unicode);
         match self.compile_source(&text, alias, path, src_mtime, comp_file.as_deref()) {
             FetchResult::Ok(doc_rc) => FetchResult::Ok(self.store(path, doc_rc, Some(src_mtime))),
             other => other,
@@ -541,17 +624,23 @@ impl Provider {
 
         if slot.load_mtime > 0 && slot.stat_time + stat_ttl <= now {
             slot.stat_time = now;
-            let current_mtime = file_mtime(Path::new(&slot.name));
+            let current_mtime = self.source.modified(&slot.name);
             if current_mtime != Some(slot.load_mtime) {
                 // Reload and recompile
-                let Some(new_mtime) = current_mtime else {
+                if current_mtime.is_none() {
                     slot.stat_time = 0;
                     self.lookup.borrow_mut().insert(key.to_string(), slot);
                     return FetchResult::Declined;
-                };
-                match fs::read(&slot.name) {
-                    Ok(bytes) => {
-                        let text = self.decode_bytes(&bytes, self.unicode);
+                }
+                match self.source.load(&slot.name) {
+                    Ok(None) => {
+                        slot.stat_time = 0;
+                        self.lookup.borrow_mut().insert(key.to_string(), slot);
+                        return FetchResult::Declined;
+                    }
+                    Ok(Some(content)) => {
+                        let new_mtime = content.modified;
+                        let text = self.decode_bytes(&content.bytes, self.unicode);
                         let comp_file = self.compiled_filename(&slot.name);
                         match self.compile_source(
                             &text,
@@ -576,7 +665,7 @@ impl Provider {
                     Err(e) => {
                         slot.stat_time = 0;
                         self.lookup.borrow_mut().insert(key.to_string(), slot);
-                        return FetchResult::Error(TemplateException::new("file", e.to_string()));
+                        return FetchResult::Error(TemplateException::new("file", e));
                     }
                 }
             }
