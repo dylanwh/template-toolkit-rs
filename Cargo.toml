@@ -6,6 +6,7 @@ description = "Rust port of Perl's Template::Toolkit (TT2)"
 license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
 
 [dependencies]
+beef = "0.5"
 bon = "3"
 regex = "1.10"
 fancy-regex = "0.13"

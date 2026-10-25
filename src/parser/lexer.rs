@@ -9,19 +9,172 @@ use crate::{
     regex_cache,
 };
 
+/// A byte range in the template source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Span {
+    pub start: u32,
+    pub end: u32,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self {
+            start: start as u32,
+            end: end as u32,
+        }
+    }
+
+    /// An empty span at `at`.
+    pub fn at(at: usize) -> Self {
+        Self::new(at, at)
+    }
+
+    pub fn range(self) -> std::ops::Range<usize> {
+        self.start as usize..self.end as usize
+    }
+}
+
+/// Where each byte of the text being tokenised is in the source (and its
+/// end, one past the last byte).
+#[derive(Debug, Clone, Copy)]
+pub enum SourceAt<'a> {
+    /// Byte `i` is at `origin + i`, kept within `lo..=hi` (so a space a
+    /// collapsing chomp put in front of the text stands where it starts).
+    Shift { origin: usize, lo: usize, hi: usize },
+    /// Byte `i` is at `table[i]`: text with escapes processed.
+    Table(&'a [usize]),
+}
+
+impl SourceAt<'_> {
+    /// The text is the source from `origin` on.
+    pub fn offset(origin: usize) -> Self {
+        SourceAt::Shift {
+            origin,
+            lo: 0,
+            hi: usize::MAX,
+        }
+    }
+
+    fn get(self, i: usize) -> usize {
+        match self {
+            SourceAt::Shift { origin, lo, hi } => (origin + i).clamp(lo, hi),
+            SourceAt::Table(table) => table[i],
+        }
+    }
+
+    /// The same for the text from byte `n` on.
+    fn skip(self, n: usize) -> Self {
+        match self {
+            SourceAt::Shift { origin, lo, hi } => SourceAt::Shift {
+                origin: origin + n,
+                lo,
+                hi,
+            },
+            SourceAt::Table(table) => SourceAt::Table(&table[n..]),
+        }
+    }
+}
+
+/// A token's or chunk's text: borrowed from the source, or owned where the
+/// lexer had to change it (escapes, ANYCASE, chomping).  Two words.
+pub type CowStr<'a> = beef::lean::Cow<'a, str>;
+
+fn std_to_cow(s: std::borrow::Cow<'_, str>) -> CowStr<'_> {
+    match s {
+        std::borrow::Cow::Borrowed(s) => CowStr::borrowed(s),
+        std::borrow::Cow::Owned(s) => CowStr::owned(s),
+    }
+}
+
+/// An owned copy of `s`, for text that outlives what it borrowed from.
+fn owned(s: CowStr<'_>) -> CowStr<'static> {
+    CowStr::owned(s.into_owned())
+}
+
 #[derive(Debug, Clone)]
-pub enum SplitChunk {
-    Text(String),
+pub enum SplitChunk<'a> {
+    Text(CowStr<'a>, Span),
     IText {
-        text: String,
+        text: CowStr<'a>,
         line: usize,
+        span: Span,
+        /// The source offset of `text`'s first byte, one before `span` when
+        /// a collapsing chomp put a space in front of it.
+        origin: usize,
     },
     Directive {
-        text: String,
+        text: CowStr<'a>,
         line: String,
-        tokens: Vec<(String, String)>,
+        tokens: Vec<(&'static str, CowStr<'a>)>,
+        /// One per token: where it is in the source.
+        spans: Vec<Span>,
+        /// The start tag (with any chomp flag), and the end tag (with its
+        /// flag; for an outline directive, the newline ending it).
+        open: Span,
+        close: Span,
     },
-    Token(String, String),
+    Token(&'static str, CowStr<'a>, Span),
+    /// A comment or TAGS directive: nothing for the parser, but part of
+    /// the source for highlighting.
+    Inert {
+        kind: InertKind,
+        open: Span,
+        body: Span,
+        close: Span,
+    },
+}
+
+impl SplitChunk<'_> {
+    /// The chunk with nothing borrowed.
+    pub fn into_owned(self) -> SplitChunk<'static> {
+        match self {
+            SplitChunk::Text(t, span) => SplitChunk::Text(owned(t), span),
+            SplitChunk::IText {
+                text,
+                line,
+                span,
+                origin,
+            } => SplitChunk::IText {
+                text: owned(text),
+                line,
+                span,
+                origin,
+            },
+            SplitChunk::Directive {
+                text,
+                line,
+                tokens,
+                spans,
+                open,
+                close,
+            } => SplitChunk::Directive {
+                text: owned(text),
+                line,
+                tokens: tokens.into_iter().map(|(t, v)| (t, owned(v))).collect(),
+                spans,
+                open,
+                close,
+            },
+            SplitChunk::Token(t, v, span) => SplitChunk::Token(t, owned(v), span),
+            SplitChunk::Inert {
+                kind,
+                open,
+                body,
+                close,
+            } => SplitChunk::Inert {
+                kind,
+                open,
+                body,
+                close,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InertKind {
+    Comment,
+    Tags,
 }
 
 #[derive(Debug, Clone)]
@@ -251,7 +404,7 @@ static ANYCASE_AFTER: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     .collect()
 });
 
-pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, String> {
+pub fn split_text<'a>(text: &'a str, style: &ParserStyle) -> Result<Vec<SplitChunk<'a>>, String> {
     let mut tokens = Vec::new();
     if text.is_empty() {
         return Ok(tokens);
@@ -285,26 +438,48 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
         let Some(split) = splitter.next(hay) else {
             break;
         };
-        let mut pre = hay[..split.pre_end].to_string();
-        let mut dir = hay[split.dir.clone()].to_string();
+        // Source offsets of positions in `hay`; the leading space, if any,
+        // stands where the text after it starts.
+        let hay_start = pos;
+        let origin = pos - usize::from(lead_space);
+        let source = |i: usize| (origin + i).max(hay_start);
+        let pre_span = Span::new(source(0), source(split.pre_end));
+        // The text before the tag, and the directive, as slices of the
+        // source: only a chomp's added space makes the text owned.
+        let pre_body = &text[hay_start..(origin + split.pre_end).max(hay_start)];
+        let mut pre: std::borrow::Cow<'a, str> = if lead_space && split.pre_end > 0 {
+            std::borrow::Cow::Owned(format!(" {pre_body}"))
+        } else {
+            std::borrow::Cow::Borrowed(pre_body)
+        };
+        let mut dir: &'a str = &text[origin + split.dir.start..origin + split.dir.end];
+        let dir_start = split.dir.start;
+        let (tag_start, dir_end, split_end) = (
+            source(split.pre_end),
+            source(split.dir.end),
+            source(split.end),
+        );
         pos += split.end - usize::from(lead_space);
         lead_space = false;
 
         let mut prelines = pre.bytes().filter(|&b| b == b'\n').count();
         let mut dirlines = dir.bytes().filter(|&b| b == b'\n').count();
         let mut postlines = 0;
+        // Bytes cut from the front of the directive: a chomp flag and
+        // whitespace.
+        let mut lead_cut = 0;
+        // Of which the chomp flag.
+        let mut flag_len = 0;
+        let comment = dir.starts_with('#');
 
-        if dir.starts_with('#') {
+        if comment {
             // Comment out entire directive except for any end chomp flag
-            if let Some(last_ch) = dir.chars().last() {
-                if chomp_char_to_mode(last_ch).is_some() {
-                    dir = last_ch.to_string();
-                } else {
-                    dir.clear();
+            dir = match dir.chars().last() {
+                Some(last_ch) if chomp_char_to_mode(last_ch).is_some() => {
+                    &dir[dir.len() - last_ch.len_utf8()..]
                 }
-            } else {
-                dir.clear();
-            }
+                _ => "",
+            };
         } else {
             // Check leading chomp flag and whitespace: s/^($CHOMP_FLAGS)?(\s*)//so
             let mut chars = dir.chars();
@@ -315,35 +490,37 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
             } else {
                 0
             };
-            let ws_part: String = dir[ws_start..]
-                .chars()
-                .take_while(|c| c.is_whitespace())
-                .collect();
-            let ws_len = ws_part.len();
+            let ws_len = dir[ws_start..].len() - dir[ws_start..].trim_start().len();
             if ws_len > 0 {
-                let linecount = ws_part.bytes().filter(|&b| b == b'\n').count();
+                let linecount = dir[ws_start..ws_start + ws_len]
+                    .bytes()
+                    .filter(|&b| b == b'\n')
+                    .count();
                 prelines += linecount;
                 dirlines = dirlines.saturating_sub(linecount);
             }
-            dir.drain(..(ws_start + ws_len));
+            dir = &dir[ws_start + ws_len..];
+            lead_cut = ws_start + ws_len;
+            flag_len = ws_start;
 
             let chomp = pre_flag.unwrap_or(prechomp);
             if chomp != CHOMP_NONE && !pre.is_empty() {
                 match chomp {
                     CHOMP_ALL => {
                         if let Some(cut) = pre_chomp_all_cut(&pre) {
-                            pre.truncate(cut);
+                            truncate(&mut pre, cut);
                         }
                     }
                     CHOMP_COLLAPSE => {
                         let kept = pre.trim_end().len();
                         if kept < pre.len() {
-                            pre.truncate(kept);
-                            pre.push(' ');
+                            truncate(&mut pre, kept);
+                            pre.to_mut().push(' ');
                         }
                     }
                     CHOMP_GREEDY => {
-                        pre.truncate(pre.trim_end().len());
+                        let kept = pre.trim_end().len();
+                        truncate(&mut pre, kept);
                     }
                     _ => {}
                 }
@@ -353,18 +530,26 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
         // POST_CHOMP: s/\s*($CHOMP_FLAGS)?\s*$//so
         let trimmed_end = dir.trim_end();
         let mut post_flag = None;
+        let mut close_start = dir_end;
         let new_dir_len = if let Some(last_ch) = trimmed_end.chars().last() {
             if let Some(mode) = chomp_char_to_mode(last_ch) {
                 post_flag = Some(mode);
-                let without_flag = &trimmed_end[..trimmed_end.len() - last_ch.len_utf8()];
-                without_flag.trim_end().len()
+                let flag_at = trimmed_end.len() - last_ch.len_utf8();
+                if !comment {
+                    close_start = source(dir_start + lead_cut + flag_at);
+                }
+                trimmed_end[..flag_at].trim_end().len()
             } else {
                 trimmed_end.len()
             }
         } else {
             0
         };
-        dir.truncate(new_dir_len);
+        dir = &dir[..new_dir_len];
+        let open = Span::new(tag_start, source(dir_start + flag_len).min(close_start));
+        let close = Span::new(close_start, split_end);
+        let body_start = source(dir_start + lead_cut).min(close_start);
+        let body = Span::new(body_start, (body_start + new_dir_len).min(close_start));
 
         let chomp = post_flag.unwrap_or(postchomp);
         let remaining = &text[pos..];
@@ -394,15 +579,29 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
         }
 
         if !pre.is_empty() {
+            let pre = std_to_cow(pre);
             if interp {
-                tokens.push(SplitChunk::IText { text: pre, line });
+                tokens.push(SplitChunk::IText {
+                    text: pre,
+                    line,
+                    span: pre_span,
+                    origin,
+                });
             } else {
-                tokens.push(SplitChunk::Text(pre));
+                tokens.push(SplitChunk::Text(pre, pre_span));
             }
         }
         line += prelines;
 
-        if !dir.is_empty() {
+        if comment {
+            let body = Span::new(open.end as usize, close.start as usize);
+            tokens.push(SplitChunk::Inert {
+                kind: InertKind::Comment,
+                open,
+                body,
+                close,
+            });
+        } else if !dir.is_empty() {
             // Check TAGS directive
             let is_tags = if anycase {
                 dir.len() > 4
@@ -413,6 +612,12 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
             };
 
             if is_tags {
+                tokens.push(SplitChunk::Inert {
+                    kind: InertKind::Tags,
+                    open,
+                    body,
+                    close,
+                });
                 let rest = dir[4..].trim();
                 let parts: Vec<&str> = rest.split_whitespace().collect();
                 if parts.len() > 1 {
@@ -434,11 +639,23 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
                 } else {
                     line.to_string()
                 };
-                let dir_tokens = tokenise_directive(&dir, anycase);
+                let mut dir_tokens = Vec::new();
+                let mut spans = Vec::new();
+                let base = body.start as usize;
+                tokenise_directive_at(
+                    dir,
+                    anycase,
+                    SourceAt::offset(base),
+                    &mut dir_tokens,
+                    &mut spans,
+                );
                 tokens.push(SplitChunk::Directive {
-                    text: dir,
+                    text: CowStr::borrowed(dir),
                     line: line_str,
                     tokens: dir_tokens,
+                    spans,
+                    open,
+                    close,
                 });
             }
         }
@@ -447,22 +664,33 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
     }
 
     let remaining = if lead_space {
-        format!(" {}", &text[pos..])
+        CowStr::owned(format!(" {}", &text[pos..]))
     } else {
-        text[pos..].to_string()
+        CowStr::borrowed(&text[pos..])
     };
     if !remaining.is_empty() {
+        let span = Span::new(pos, text.len());
         if interp {
             tokens.push(SplitChunk::IText {
                 text: remaining,
                 line,
+                span,
+                origin: pos - usize::from(lead_space),
             });
         } else {
-            tokens.push(SplitChunk::Text(remaining));
+            tokens.push(SplitChunk::Text(remaining, span));
         }
     }
 
     Ok(tokens)
+}
+
+/// `s.truncate(len)`, keeping a borrowed `s` borrowed.
+fn truncate(s: &mut std::borrow::Cow<'_, str>, len: usize) {
+    match s {
+        std::borrow::Cow::Borrowed(b) => *b = &b[..len],
+        std::borrow::Cow::Owned(o) => o.truncate(len),
+    }
 }
 
 /// Build a multi-pattern regex for capture-free tokenising: a search
@@ -529,10 +757,22 @@ fn interp_next(text: &str, from: usize) -> Option<(usize, usize, usize)> {
     None
 }
 
-pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<SplitChunk> {
+pub fn interpolate_text(text: &str, line: usize, anycase: bool) -> Vec<SplitChunk<'_>> {
+    interpolate_text_at(text, line, anycase, SourceAt::offset(0))
+}
+
+/// `interpolate_text`, with `at` giving the source offset of each byte of
+/// `text` (and of its end) for the chunks' spans.
+pub fn interpolate_text_at<'t>(
+    text: &'t str,
+    mut line: usize,
+    anycase: bool,
+    at: SourceAt,
+) -> Vec<SplitChunk<'t>> {
     let mut chunks = Vec::new();
     let mut pos = 0;
     let bytes = text.as_bytes();
+    let span = |start: usize, end: usize| Span::new(at.get(start), at.get(end));
 
     while pos < text.len() {
         if let Some((start, kind, end)) = interp_next(text, pos) {
@@ -540,7 +780,10 @@ pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<Split
                 // Unmatched '$' before match
                 let skipped = &text[pos..start];
                 line += skipped.bytes().filter(|&b| b == b'\n').count();
-                chunks.push(SplitChunk::Text(skipped.to_string()));
+                chunks.push(SplitChunk::Text(
+                    CowStr::borrowed(skipped),
+                    span(pos, start),
+                ));
                 pos = start;
                 continue;
             }
@@ -549,23 +792,43 @@ pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<Split
 
             if kind == INTERP_TEXT {
                 line += matched.bytes().filter(|&b| b == b'\n').count();
-                chunks.push(SplitChunk::Text(matched.replace(r"\$", "$")));
-            } else {
-                let var = if kind == INTERP_BRACED {
-                    &matched[2..matched.len() - 1]
+                let unescaped = if matched.contains(r"\$") {
+                    CowStr::owned(matched.replace(r"\$", "$"))
                 } else {
-                    &matched[1..]
+                    CowStr::borrowed(matched)
                 };
+                chunks.push(SplitChunk::Text(unescaped, span(start, end)));
+            } else {
+                let (var_start, var_end) = if kind == INTERP_BRACED {
+                    (start + 2, end - 1)
+                } else {
+                    (start + 1, end)
+                };
+                let var = &text[var_start..var_end];
                 line += matched.bytes().filter(|&b| b == b'\n').count();
                 if !var.is_empty() {
-                    let dir_tokens = tokenise_directive(var, anycase);
+                    let mut dir_tokens = Vec::new();
+                    let mut spans = Vec::new();
+                    tokenise_directive_at(
+                        var,
+                        anycase,
+                        at.skip(var_start),
+                        &mut dir_tokens,
+                        &mut spans,
+                    );
                     chunks.push(SplitChunk::Directive {
-                        text: matched.to_string(),
+                        text: CowStr::borrowed(matched),
                         line: line.to_string(),
                         tokens: dir_tokens,
+                        spans,
+                        open: span(start, var_start),
+                        close: span(var_end, end),
                     });
                 } else {
-                    chunks.push(SplitChunk::Text(matched.to_string()));
+                    chunks.push(SplitChunk::Text(
+                        CowStr::borrowed(matched),
+                        span(start, end),
+                    ));
                 }
             }
         } else {
@@ -579,7 +842,10 @@ pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<Split
             if bytes[pos] == b'\n' {
                 line += 1;
             }
-            chunks.push(SplitChunk::Text(slice.to_string()));
+            chunks.push(SplitChunk::Text(
+                CowStr::borrowed(slice),
+                span(pos, pos + ch_len),
+            ));
             pos += ch_len;
         }
     }
@@ -744,10 +1010,33 @@ fn closing_quote(bytes: &[u8], from: usize, quote: u8) -> Option<usize> {
     close[from]
 }
 
-pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
-    let mut tokens: Vec<(String, String)> = Vec::new();
+pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(&'static str, String)> {
+    let mut tokens = Vec::new();
+    tokenise_directive_at(
+        text,
+        anycase,
+        SourceAt::offset(0),
+        &mut tokens,
+        &mut Vec::new(),
+    );
+    tokens
+        .into_iter()
+        .map(|(t, v)| (t, v.into_owned()))
+        .collect()
+}
+
+/// `tokenise_directive`, appending to `tokens` and, for each token, its
+/// span to `spans`; `at` gives the source offset of each byte of `text`.
+pub fn tokenise_directive_at<'t>(
+    text: &'t str,
+    anycase: bool,
+    at: SourceAt,
+    tokens: &mut Vec<(&'static str, CowStr<'t>)>,
+    spans: &mut Vec<Span>,
+) {
     let mut pos = 0;
     let bytes = text.as_bytes();
+    let span = |start: usize, end: usize| Span::new(at.get(start), at.get(end));
 
     while pos < text.len() {
         let b = bytes[pos];
@@ -755,72 +1044,86 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
         if b == b'"' || b == b'\'' {
             let quote = b;
             if let Some(end_pos) = closing_quote(bytes, pos + 1, quote) {
-                let inner = &text[pos + 1..end_pos];
+                let inner_start = pos + 1;
+                let inner = &text[inner_start..end_pos];
+                let whole = span(pos, end_pos + 1);
                 pos = end_pos + 1;
                 if quote == b'"' {
                     if inner.contains('$') || inner.contains('\\') {
                         // Process escapes:
                         // s/\\([^\$nrt])/$1/g;
                         // s/\\([nrt])/$QUOTED_ESCAPES->{ $1 }/ge;
+                        // `source` maps each byte of the result to where it
+                        // came from (an escape, to its backslash).
                         let mut processed = String::with_capacity(inner.len());
-                        let mut chars = inner.chars().peekable();
-                        while let Some(c) = chars.next() {
+                        let mut source: Vec<usize> = Vec::with_capacity(inner.len() + 1);
+                        let mut push = |s: &str, from: usize, processed: &mut String| {
+                            processed.push_str(s);
+                            source.extend(std::iter::repeat_n(at.get(inner_start + from), s.len()));
+                        };
+                        let mut chars = inner.char_indices().peekable();
+                        while let Some((i, c)) = chars.next() {
                             if c == '\\' {
-                                if let Some(&next_c) = chars.peek() {
+                                if let Some(&(_, next_c)) = chars.peek() {
+                                    chars.next();
                                     match next_c {
-                                        '$' => {
-                                            processed.push('\\');
-                                            processed.push('$');
-                                            chars.next();
-                                        }
-                                        'n' => {
-                                            processed.push('\n');
-                                            chars.next();
-                                        }
-                                        'r' => {
-                                            processed.push('\r');
-                                            chars.next();
-                                        }
-                                        't' => {
-                                            processed.push('\t');
-                                            chars.next();
-                                        }
+                                        '$' => push("\\$", i, &mut processed),
+                                        'n' => push("\n", i, &mut processed),
+                                        'r' => push("\r", i, &mut processed),
+                                        't' => push("\t", i, &mut processed),
                                         other => {
-                                            processed.push(other);
-                                            chars.next();
+                                            push(other.encode_utf8(&mut [0; 4]), i, &mut processed)
                                         }
                                     }
                                 } else {
-                                    processed.push('\\');
+                                    push("\\", i, &mut processed);
                                 }
                             } else {
-                                processed.push(c);
+                                push(c.encode_utf8(&mut [0; 4]), i, &mut processed);
                             }
                         }
+                        source.push(at.get(end_pos));
 
-                        tokens.push(("\"".to_string(), "\"".to_string()));
-                        let interp_chunks = interpolate_text(&processed, 1, anycase);
+                        tokens.push(("\"", CowStr::borrowed("\"")));
+                        spans.push(Span::new(whole.start as usize, whole.start as usize + 1));
+                        let interp_chunks =
+                            interpolate_text_at(&processed, 1, anycase, SourceAt::Table(&source));
                         for chunk in interp_chunks {
                             match chunk {
-                                SplitChunk::Text(t) => {
-                                    tokens.push(("TEXT".to_string(), t));
+                                // `processed` is a local, so what borrows from it is copied.
+                                SplitChunk::Text(t, s) => {
+                                    tokens.push(("TEXT", owned(t)));
+                                    spans.push(s);
                                 }
                                 SplitChunk::Directive {
-                                    tokens: sub_tokens, ..
+                                    tokens: sub_tokens,
+                                    spans: sub_spans,
+                                    close,
+                                    ..
                                 } => {
-                                    tokens.extend(sub_tokens);
-                                    tokens.push((";".to_string(), ";".to_string()));
+                                    tokens
+                                        .extend(sub_tokens.into_iter().map(|(t, v)| (t, owned(v))));
+                                    spans.extend(sub_spans);
+                                    tokens.push((";", CowStr::borrowed(";")));
+                                    spans.push(Span::at(close.start as usize));
                                 }
                                 _ => {}
                             }
                         }
-                        tokens.push(("\"".to_string(), "\"".to_string()));
+                        tokens.push(("\"", CowStr::borrowed("\"")));
+                        spans.push(Span::new(whole.end as usize - 1, whole.end as usize));
                     } else {
                         let escaped = inner.replace('\'', r"\'");
-                        tokens.push(("LITERAL".to_string(), format!("'{}'", escaped)));
+                        tokens.push(("LITERAL", CowStr::owned(format!("'{}'", escaped))));
+                        spans.push(whole);
                     }
                 } else {
-                    tokens.push(("LITERAL".to_string(), format!("'{}'", inner)));
+                    // `'inner'` is the source text itself.
+                    tokens.push((
+                        "LITERAL",
+                        CowStr::borrowed(&text[inner_start - 1..end_pos + 1]),
+                    ));
+                    spans.push(whole);
                 }
                 continue;
             }
@@ -836,46 +1139,41 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
         });
         if let Some((kind, end)) = matched {
             let token = &text[pos..end];
+            if kind != TOK_SKIP {
+                spans.push(span(pos, end));
+            }
             pos = end;
 
             if kind == TOK_SKIP {
                 // whitespace or comment
             } else if kind == TOK_NUMBER {
-                tokens.push(("NUMBER".to_string(), token.to_string()));
+                tokens.push(("NUMBER", CowStr::borrowed(token)));
             } else if kind == TOK_FILENAME {
-                tokens.push(("FILENAME".to_string(), token.to_string()));
+                tokens.push(("FILENAME", CowStr::borrowed(token)));
             } else if kind == TOK_WORD {
-                let uctoken = if anycase {
+                // Under ANYCASE a word is looked up in upper case, unless
+                // what is around it makes it a name.
+                let folded = anycase && !token.bytes().all(|b| !b.is_ascii_lowercase()) && {
                     let prev_blocks_fold = tokens
                         .last()
-                        .map(|(t, _)| ANYCASE_AFTER.contains(t.as_str()))
-                        .unwrap_or(false);
-                    let next_blocks_fold = ANYCASE_BEFORE_RE.is_match(&text[pos..]);
-                    if prev_blocks_fold || next_blocks_fold {
-                        token.to_string()
-                    } else {
-                        token.to_ascii_uppercase()
-                    }
-                } else {
-                    token.to_string()
+                        .is_some_and(|(t, _)| ANYCASE_AFTER.contains(t));
+                    !(prev_blocks_fold || ANYCASE_BEFORE_RE.is_match(&text[pos..]))
                 };
-
-                if let Some(lex_type) = lookup_lextable(&uctoken) {
-                    tokens.push((lex_type.to_string(), uctoken));
-                } else {
-                    tokens.push(("IDENT".to_string(), token.to_string()));
+                let upper = folded.then(|| token.to_ascii_uppercase());
+                match lookup_lextable(upper.as_deref().unwrap_or(token)) {
+                    Some(lex_type) => tokens.push((
+                        lex_type,
+                        upper.map_or(CowStr::borrowed(token), CowStr::owned),
+                    )),
+                    None => tokens.push(("IDENT", CowStr::borrowed(token))),
                 }
             } else {
-                let uctoken = if anycase {
-                    token.to_ascii_uppercase()
+                let lex_type = if anycase {
+                    lookup_lextable(&token.to_ascii_uppercase())
                 } else {
-                    token.to_string()
+                    lookup_lextable(token)
                 };
-                if let Some(lex_type) = lookup_lextable(&uctoken) {
-                    tokens.push((lex_type.to_string(), token.to_string()));
-                } else {
-                    tokens.push(("UNQUOTED".to_string(), token.to_string()));
-                }
+                tokens.push((lex_type.unwrap_or("UNQUOTED"), CowStr::borrowed(token)));
             }
         } else {
             // Advance by 1 char if nothing matched
@@ -887,8 +1185,6 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
             pos += ch_len;
         }
     }
-
-    tokens
 }
 
 #[cfg(test)]

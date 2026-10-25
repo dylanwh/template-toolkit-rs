@@ -448,7 +448,7 @@ impl Provider {
             Ok(Some(content)) => {
                 // Note: Provider::load() in TT2 reads raw bytes without BOM decoding,
                 // or decodes according to ENCODING if set
-                LoadResult::Ok(self.decode_bytes(&content.bytes, false))
+                LoadResult::Ok(self.decode_owned(content.bytes, false))
             }
             Ok(None) => LoadResult::Declined,
             Err(e) => {
@@ -597,7 +597,7 @@ impl Provider {
         };
 
         let src_mtime = content.modified;
-        let text = self.decode_bytes(&content.bytes, self.unicode);
+        let text = self.decode_owned(content.bytes, self.unicode);
         match self.compile_source(&text, alias, path, src_mtime, comp_file.as_deref()) {
             FetchResult::Ok(doc_rc) => FetchResult::Ok(self.store(path, doc_rc, Some(src_mtime))),
             other => other,
@@ -640,7 +640,7 @@ impl Provider {
                     }
                     Ok(Some(content)) => {
                         let new_mtime = content.modified;
-                        let text = self.decode_bytes(&content.bytes, self.unicode);
+                        let text = self.decode_owned(content.bytes, self.unicode);
                         let comp_file = self.compiled_filename(&slot.name);
                         match self.compile_source(
                             &text,
@@ -736,6 +736,22 @@ impl Provider {
                 }
             }
         }
+    }
+
+    /// [`Provider::decode_bytes`] for bytes we own: plain UTF-8, the usual
+    /// case, becomes the string without a copy.
+    pub fn decode_owned(&self, bytes: Vec<u8>, check_bom: bool) -> String {
+        const BOMS: [&[u8]; 5] = [
+            &[0xEF, 0xBB, 0xBF],
+            &[0x00, 0x00, 0xFE, 0xFF],
+            &[0xFF, 0xFE, 0x00, 0x00],
+            &[0xFE, 0xFF],
+            &[0xFF, 0xFE],
+        ];
+        if self.encoding.is_some() || (check_bom && BOMS.iter().any(|bom| bytes.starts_with(bom))) {
+            return self.decode_bytes(&bytes, check_bom);
+        }
+        String::from_utf8(bytes).unwrap_or_else(|e| self.decode_bytes(e.as_bytes(), check_bom))
     }
 
     pub fn decode_bytes(&self, bytes: &[u8], check_bom: bool) -> String {

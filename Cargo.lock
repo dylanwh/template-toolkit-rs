@@ -98,6 +98,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "beef"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -754,6 +760,7 @@ dependencies = [
 name = "template-toolkit"
 version = "3.0.9"
 dependencies = [
+ "beef",
  "bon",
  "encoding_rs",
  "fancy-regex",

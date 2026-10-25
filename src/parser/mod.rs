@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod grammar_tables;
+pub mod highlight;
 pub mod lexer;
 
 use std::{collections::HashMap, rc::Rc};
@@ -13,8 +14,8 @@ use crate::{
         },
         grammar_tables::{terminal_id, RULES, STATES},
         lexer::{
-            get_tag_style, interpolate_text, split_text, tokenise_directive, ParserStyle,
-            SplitChunk,
+            get_tag_style, interpolate_text, interpolate_text_at, split_text, tokenise_directive,
+            CowStr, ParserStyle, SourceAt, Span, SplitChunk,
         },
     },
     stash::Stash,
@@ -140,6 +141,9 @@ pub struct Parser {
     pub trace_vars: bool,
     pub namespaces: HashMap<String, ConstantsNamespace>,
     pub error_msg: String,
+    /// Where in the source the last parse error was: the token the parser
+    /// stopped at (empty at the end of the input).
+    pub error_span: Option<Span>,
     pub warnings: Vec<String>,
     pub warn_handler: Option<WarnHandler>,
 }
@@ -152,7 +156,7 @@ impl std::fmt::Debug for Parser {
 
 #[bon::bon]
 impl Parser {
-    #[builder(start_fn = builder, finish_fn = build)]
+    #[builder(start_fn = builder, finish_fn = build, state_mod(vis = "pub"))]
     pub fn build(
         start_tag: Option<String>,
         end_tag: Option<String>,
@@ -178,6 +182,7 @@ impl Parser {
             trace_vars,
             namespaces,
             error_msg: String::new(),
+            error_span: None,
             warnings: Vec::new(),
             warn_handler,
         };
@@ -295,20 +300,27 @@ impl Parser {
         Ok(self.styles.last().unwrap())
     }
 
-    pub fn split_text(&self, text: &str) -> Result<Vec<SplitChunk>, String> {
+    pub fn split_text<'a>(&self, text: &'a str) -> Result<Vec<SplitChunk<'a>>, String> {
         split_text(text, self.current_style())
     }
 
-    pub fn interpolate_text(&self, text: &str, line: usize) -> Vec<SplitChunk> {
+    pub fn interpolate_text<'a>(&self, text: &'a str, line: usize) -> Vec<SplitChunk<'a>> {
         interpolate_text(text, line, self.current_style().anycase)
     }
 
-    pub fn tokenise_directive(&self, text: &str) -> Vec<(String, String)> {
+    pub fn tokenise_directive(&self, text: &str) -> Vec<(&'static str, String)> {
         tokenise_directive(text, self.current_style().anycase)
+    }
+
+    /// What each part of `text` is, by byte span, in the current style; see
+    /// [`highlight::highlight`].
+    pub fn highlight(&self, text: &str) -> Result<Vec<(Span, highlight::Lexeme)>, String> {
+        highlight::highlight(text, self.current_style())
     }
 
     pub fn parse(&mut self, text: &str, info: Option<ParseInfo>) -> Result<ParsedDocument, String> {
         self.error_msg.clear();
+        self.error_span = None;
         let info = info.unwrap_or_default();
         let chunks = match self.split_text(text) {
             Ok(c) => c,
@@ -328,6 +340,8 @@ impl Parser {
             metadata: Vec::new(),
             variables: HashMap::new(),
             line: String::new(),
+            span: Span::at(text.len()),
+            end: text.len(),
             inperl: 0,
             debug_dirs: false,
             wrap_debug: false,
@@ -350,10 +364,12 @@ impl Parser {
     }
 }
 
+/// A parser stack value; tokens borrow from the source until the syntax
+/// tree takes them.
 #[derive(Debug, Clone)]
-enum StackVal {
+enum StackVal<'s> {
     None,
-    Token(String),
+    Token(CowStr<'s>),
     Block(Block),
     Chunks(Vec<SpannedStmt>),
     Chunk(Option<SpannedStmt>),
@@ -389,10 +405,10 @@ enum StackVal {
     NameArgs(NameArgs),
 }
 
-impl StackVal {
+impl StackVal<'_> {
     fn into_token(self) -> String {
         match self {
-            StackVal::Token(s) => s,
+            StackVal::Token(s) => s.into_owned(),
             StackVal::Expr(Expr::Str(s)) => s,
             _ => String::new(),
         }
@@ -586,6 +602,9 @@ struct ParseSession<'a> {
     metadata: Vec<(String, String)>,
     variables: HashMap<String, VariableTrace>,
     line: String,
+    /// The span of the lookahead token, and the end of the source.
+    span: Span,
+    end: usize,
     inperl: usize,
     debug_dirs: bool,
     /// $info->{DEBUG}: fixed at the start of a parse (DEBUG on/off only affects later parses)
@@ -684,16 +703,25 @@ impl<'a> ParseSession<'a> {
             full.push_str(&format!("\n  [% {} %]", dt));
         }
         self.parser.error_msg = full.clone();
+        self.parser.error_span = Some(self.span);
         full
     }
 
-    fn run_parse(&mut self, mut queue: Vec<SplitChunk>) -> Result<Block, String> {
+    fn run_parse<'s>(&mut self, mut queue: Vec<SplitChunk<'s>>) -> Result<Block, String> {
         queue.reverse(); // Use as stack (pop from back = shift from front)
 
-        let mut stack: Vec<(usize, StackVal)> = vec![(0, StackVal::None)];
-        let mut token: Option<String> = None;
-        let mut value: Option<String> = None;
-        let mut last_dir_text: Option<String> = None;
+        let mut stack: Vec<(usize, StackVal<'s>)> = vec![(0, StackVal::None)];
+        // The tokens of the directive being parsed, read where the lexer left
+        // them: any DEBUG wraps it in (last first), its own, then the ';'
+        // ending it.
+        let mut pending: Vec<(&'static str, CowStr<'s>, Span)> = Vec::new();
+        let mut dir_tokens = Vec::new().into_iter().zip(Vec::new());
+        let mut dir_end: Option<Span> = None;
+        // The values a reduction pops, in a buffer reused for every one.
+        let mut popped: Vec<StackVal<'s>> = Vec::new();
+        let mut token: Option<&'static str> = None;
+        let mut value: Option<CowStr<'s>> = None;
+        let mut last_dir_text: Option<CowStr<'s>> = None;
         let mut in_string = false;
         let anycase = self.parser.current_style().anycase;
 
@@ -702,71 +730,121 @@ impl<'a> ParseSession<'a> {
             let state = &STATES[stateno];
 
             let action: Option<i16> = if let Some(actions) = state.actions {
-                while token.is_none() && !queue.is_empty() {
-                    let item = queue.pop().unwrap();
-                    match item {
-                        SplitChunk::Text(t) => {
-                            token = Some("TEXT".to_string());
-                            value = Some(t);
+                while token.is_none() {
+                    // A directive's tokens, then the next chunk.
+                    let next = pending.pop().or_else(|| {
+                        dir_tokens
+                            .next()
+                            .map(|((t, v), span)| (t, v, span))
+                            .or_else(|| {
+                                dir_end
+                                    .take()
+                                    .map(|close| (";", CowStr::borrowed(";"), close))
+                            })
+                    });
+                    if let Some((tok_type, tok_val, span)) = next {
+                        if tok_type == "\"" {
+                            in_string = !in_string;
                         }
-                        SplitChunk::Token(tok_type, tok_val) => {
+                        token = Some(tok_type);
+                        value = Some(tok_val);
+                        self.span = span;
+                        continue;
+                    }
+                    let Some(item) = queue.pop() else { break };
+                    match item {
+                        SplitChunk::Text(t, span) => {
+                            token = Some("TEXT");
+                            value = Some(t);
+                            self.span = span;
+                        }
+                        SplitChunk::Token(tok_type, tok_val, span) => {
                             if tok_type == "\"" {
                                 in_string = !in_string;
                             }
                             token = Some(tok_type);
                             value = Some(tok_val);
+                            self.span = span;
                         }
-                        SplitChunk::IText { text, line } => {
+                        SplitChunk::IText {
+                            text,
+                            line,
+                            span,
+                            origin,
+                        } => {
                             self.line = line.to_string();
                             if self.inperl > 0 {
-                                token = Some("TEXT".to_string());
+                                token = Some("TEXT");
                                 value = Some(text);
+                                self.span = span;
                             } else {
-                                let sub = interpolate_text(&text, line, anycase);
-                                for sc in sub.into_iter().rev() {
-                                    queue.push(sc);
+                                let at = SourceAt::Shift {
+                                    origin,
+                                    lo: span.start as usize,
+                                    hi: span.end as usize,
+                                };
+                                if text.is_borrowed() {
+                                    let text = text.unwrap_borrowed();
+                                    queue.extend(
+                                        interpolate_text_at(text, line, anycase, at)
+                                            .into_iter()
+                                            .rev(),
+                                    );
+                                } else {
+                                    let sub = interpolate_text_at(&text, line, anycase, at);
+                                    queue.extend(
+                                        sub.into_iter()
+                                            .rev()
+                                            .map(|c| -> SplitChunk<'s> { c.into_owned() }),
+                                    );
                                 }
                             }
                         }
+                        SplitChunk::Inert { .. } => {}
                         SplitChunk::Directive {
                             text,
                             line,
-                            tokens: dir_tokens,
+                            tokens,
+                            spans,
+                            open,
+                            close,
                         } => {
-                            last_dir_text = Some(text.clone());
-                            self.line = line.clone();
+                            self.line = line;
 
-                            // Push trailing ';'
-                            queue.push(SplitChunk::Token(";".to_string(), ";".to_string()));
-                            for (tt, tv) in dir_tokens.into_iter().rev() {
-                                queue.push(SplitChunk::Token(tt, tv));
-                            }
+                            // The ';' after its tokens stands at the end tag.
+                            dir_tokens = tokens.into_iter().zip(spans);
+                            dir_end = Some(close);
+                            let whole = Span {
+                                start: open.start,
+                                end: close.end,
+                            };
 
                             if self.wrap_debug && !in_string {
                                 let file_name = self.info.name.clone().unwrap_or_default();
                                 let debug_tokens = vec![
-                                    ("DEBUG".to_string(), "DEBUG".to_string()),
-                                    ("IDENT".to_string(), "msg".to_string()),
-                                    ("IDENT".to_string(), "line".to_string()),
-                                    ("ASSIGN".to_string(), "=".to_string()),
-                                    ("LITERAL".to_string(), format!("'{}'", line)),
-                                    ("IDENT".to_string(), "text".to_string()),
-                                    ("ASSIGN".to_string(), "=".to_string()),
-                                    ("LITERAL".to_string(), format!("'{}'", text)),
-                                    ("IDENT".to_string(), "file".to_string()),
-                                    ("ASSIGN".to_string(), "=".to_string()),
-                                    ("LITERAL".to_string(), format!("'{}'", file_name)),
-                                    (";".to_string(), ";".to_string()),
+                                    ("DEBUG", CowStr::borrowed("DEBUG")),
+                                    ("IDENT", CowStr::borrowed("msg")),
+                                    ("IDENT", CowStr::borrowed("line")),
+                                    ("ASSIGN", CowStr::borrowed("=")),
+                                    ("LITERAL", CowStr::owned(format!("'{}'", self.line))),
+                                    ("IDENT", CowStr::borrowed("text")),
+                                    ("ASSIGN", CowStr::borrowed("=")),
+                                    ("LITERAL", CowStr::owned(format!("'{}'", text))),
+                                    ("IDENT", CowStr::borrowed("file")),
+                                    ("ASSIGN", CowStr::borrowed("=")),
+                                    ("LITERAL", CowStr::owned(format!("'{}'", file_name))),
+                                    (";", CowStr::borrowed(";")),
                                 ];
                                 for (dt, dv) in debug_tokens.into_iter().rev() {
-                                    queue.push(SplitChunk::Token(dt, dv));
+                                    pending.push((dt, dv, whole));
                                 }
                             }
+                            last_dir_text = Some(text);
                         }
                     }
                 }
 
-                let lookahead = terminal_id(token.as_deref().unwrap_or(""));
+                let lookahead = terminal_id(token.unwrap_or(""));
                 let found = lookahead
                     .and_then(|id| actions.iter().find(|&&(k, _)| k == id).map(|&(_, act)| act));
                 found.or(state.default)
@@ -780,7 +858,8 @@ impl<'a> ParseSession<'a> {
 
             if act > 0 {
                 // Shift
-                let shifted_val = StackVal::Token(value.take().unwrap_or_default());
+                let shifted_val =
+                    StackVal::Token(value.take().unwrap_or_else(|| CowStr::borrowed("")));
                 token = None;
                 stack.push((act as usize, shifted_val));
                 continue;
@@ -792,9 +871,10 @@ impl<'a> ParseSession<'a> {
             let accept = act == 0;
 
             let split_idx = stack.len() - rule.len;
-            let popped: Vec<StackVal> = stack.drain(split_idx..).map(|(_, v)| v).collect();
+            popped.clear();
+            popped.extend(stack.drain(split_idx..).map(|(_, v)| v));
 
-            let coderet = match self.execute_rule(rule_idx, popped) {
+            let coderet = match self.execute_rule(rule_idx, &mut popped) {
                 Ok(v) => v,
                 Err(e) => return Err(self.parse_error(&e, None)),
             };
@@ -815,9 +895,10 @@ impl<'a> ParseSession<'a> {
         }
 
         let Some(val) = value else {
+            self.span = Span::at(self.end);
             return Err(self.parse_error("unexpected end of input", None));
         };
-        if val == ";" {
+        if &*val == ";" {
             return Err(self.parse_error("unexpected end of directive", last_dir_text.as_deref()));
         }
         Err(self.parse_error(
@@ -826,10 +907,14 @@ impl<'a> ParseSession<'a> {
         ))
     }
 
-    fn execute_rule(&mut self, rule_idx: usize, mut v: Vec<StackVal>) -> Result<StackVal, String> {
+    fn execute_rule<'s>(
+        &mut self,
+        rule_idx: usize,
+        v: &mut Vec<StackVal<'s>>,
+    ) -> Result<StackVal<'s>, String> {
         match rule_idx {
             // Rule 0: $start -> template $end
-            0 => Ok(v.into_iter().next().unwrap_or(StackVal::None)),
+            0 => Ok(v.drain(..).next().unwrap_or(StackVal::None)),
 
             // Rule 1: template -> block
             1 => Ok(v.pop().unwrap()),
@@ -1482,7 +1567,7 @@ impl<'a> ParseSession<'a> {
             83 => {
                 let bname = v.pop().unwrap().into_token();
                 self.defblocks_name_stack.push(bname.clone());
-                Ok(StackVal::Token(bname))
+                Ok(StackVal::Token(CowStr::owned(bname)))
             }
 
             // Rule 84: blockname -> filename
@@ -1496,7 +1581,7 @@ impl<'a> ParseSession<'a> {
                 } else {
                     lit
                 };
-                Ok(StackVal::Token(stripped))
+                Ok(StackVal::Token(CowStr::owned(stripped)))
             }
 
             // Rule 86: blockargs -> metadata
@@ -2194,7 +2279,7 @@ impl<'a> ParseSession<'a> {
                 let part = v.pop().unwrap().into_token();
                 let _dot = v.pop();
                 let base = v.pop().unwrap().into_token();
-                Ok(StackVal::Token(format!("{}.{}", base, part)))
+                Ok(StackVal::Token(CowStr::owned(format!("{}.{}", base, part))))
             }
 
             // Rule 171..174: filename -> filepart, filepart -> FILENAME | IDENT | NUMBER
