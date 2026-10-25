@@ -125,6 +125,25 @@
   .out .error { color: var(--err); background: var(--err-bg); border-radius: 6px; margin: 12px 14px; padding: 10px 12px; }
   .out iframe { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
 
+  /* Schema view: what the template needs from its caller. */
+  .scan { padding: 12px 14px; display: grid; gap: 14px; align-content: start; }
+  .scan h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .scan .needs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    font-family: var(--font-code); font-size: 12.5px; padding: 2px 8px; border-radius: 999px;
+    color: var(--tag); background: var(--tag-bg); border: 1px solid color-mix(in srgb, var(--tag) 30%, transparent);
+  }
+  .scan .none { font-size: 12.5px; color: var(--muted); }
+  .scan .warnings { margin: 0; padding: 8px 12px 8px 28px; font-size: 12.5px; border-radius: 6px; background: var(--tag-bg); }
+  .scan pre.json {
+    margin: 0; padding: 0; font-family: var(--font-code); font-size: var(--code-size); line-height: var(--code-line);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .json .k { color: var(--accent); }
+  .json .s { color: var(--ok); }
+  .json .n { color: var(--tag); }
+
   footer { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; }
   footer code { font-family: var(--font-code); }
 
@@ -193,6 +212,7 @@
       <span class="seg" role="group" aria-label="Output view">
         <button type="button" id="view-text" aria-pressed="true">Text</button>
         <button type="button" id="view-html" aria-pressed="false">HTML</button>
+        <button type="button" id="view-schema" aria-pressed="false" title="The variables, modules and filters this template needs">Schema</button>
       </span>
       <button type="button" id="copy-out">Copy</button>
     </div>
@@ -272,6 +292,20 @@ sqrt(2) = [% Math.sqrt(2) %], int(7.9) = [% Math.int(7.9) %], abs(-42) = [% Math
 [% FOREACH row IN table.rows -%]
 [% row.join(' | ') %]
 [% END -%]`],
+  ["Input schema", `[%# Switch the output to the Schema view: it lists the variables
+    this template expects, the modules it loads and the filters
+    it needs beyond the built-in ones. -%]
+[% USE date -%]
+[% DEFAULT title = 'Order summary' -%]
+<h1>[% title | html %]</h1>
+<p>For [% customer.name %] &lt;[% customer.email.lower %]&gt;</p>
+<ul>
+[% FOREACH line IN order.lines -%]
+  <li>[% line.qty %] x [% line.product.name | html %]: [% line.qty * line.price %]</li>
+[% END -%]
+</ul>
+[% IF order.notes %][% order.notes | markdown %][% END -%]
+Printed [% date.format(date.now, '%d %b %Y') %]`],
   ["An error", `This template has a mistake:
 [% FOREACH item IN items %]
   [% item %]
@@ -337,8 +371,37 @@ function setView(next) {
   view = next;
   $("view-text").setAttribute("aria-pressed", String(view === "text"));
   $("view-html").setAttribute("aria-pressed", String(view === "html"));
-  $("show-ws").disabled = view === "html";
+  $("view-schema").setAttribute("aria-pressed", String(view === "schema"));
+  $("show-ws").disabled = view !== "text";
   run();
+}
+
+// Pretty JSON with keys, strings and numbers tinted.
+function jsonHtml(value) {
+  return escapeHtml(JSON.stringify(value, null, 2)).replace(
+    /(&quot;(?:[^&\\]|\\.|&(?!quot;))*&quot;)(\s*:)?|\b(-?\d+(?:\.\d+)?|true|false|null)\b/g,
+    (m, str, colon, num) => str ? `<span class="${colon ? "k" : "s"}">${str}</span>${colon ?? ""}` : `<span class="n">${num}</span>`,
+  );
+}
+
+function chips(names, empty) {
+  return names.length
+    ? `<ul class="chips">${names.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>`
+    : `<p class="none">${empty}</p>`;
+}
+
+function showScan(report) {
+  const warnings = report.warnings.length
+    ? `<ul class="warnings">${report.warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join("")}</ul>`
+    : "";
+  out.innerHTML = `<div class="scan">
+    <div class="needs">
+      <section><h3>Modules (USE)</h3>${chips(report.modules, "None")}</section>
+      <section><h3>Filters</h3>${chips(report.filters, "Only built-in filters")}</section>
+    </div>
+    ${warnings}
+    <section><h3>Input variables</h3><pre class="json">${jsonHtml(report.variables)}</pre></section>
+  </div>`;
 }
 
 function show(output, error) {
@@ -363,6 +426,23 @@ function run() {
   highlight();
   if (!ready) return;
   const t0 = performance.now();
+  if (view === "schema") {
+    try {
+      const report = JSON.parse(scan(src.value, options()));
+      lastOutput = JSON.stringify({ variables: report.variables, modules: report.modules, filters: report.filters }, null, 2);
+      const ms = performance.now() - t0;
+      status.className = "status ok";
+      status.textContent = `scanned in ${ms < 1 ? ms.toFixed(2) : ms.toFixed(1)} ms`;
+      showScan(report);
+    } catch (e) {
+      lastOutput = "";
+      status.className = "status err";
+      status.textContent = "error";
+      show("", String(e));
+    }
+    save();
+    return;
+  }
   try {
     lastOutput = render(src.value, options());
     const ms = performance.now() - t0;
@@ -418,7 +498,7 @@ async function copy(text, button, selectTarget) {
 }
 const selectSource = () => { src.focus(); src.select(); };
 const selectOutput = () => {
-  const node = out.querySelector("pre");
+  const node = out.querySelector(".scan, pre");
   if (!node) return;
   const range = document.createRange();
   range.selectNodeContents(node);
@@ -443,6 +523,7 @@ src.addEventListener("keydown", (e) => {
 for (const id of optionIds) $(id).addEventListener("change", run);
 $("view-text").addEventListener("click", () => setView("text"));
 $("view-html").addEventListener("click", () => setView("html"));
+$("view-schema").addEventListener("click", () => setView("schema"));
 $("copy-src").addEventListener("click", (e) => copy(src.value, e.currentTarget, selectSource));
 $("copy-out").addEventListener("click", (e) => copy(lastOutput, e.currentTarget, selectOutput));
 
