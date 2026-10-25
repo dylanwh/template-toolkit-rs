@@ -1,0 +1,2 @@
+Perl's splitter is non-greedy, so this directive ends early:
+[% "a %] in a string" %] after

@@ -698,8 +698,10 @@ dependencies = [
  "encoding_rs",
  "fancy-regex",
  "jiff",
+ "memchr",
  "pure-rust-locales",
  "regex",
+ "regex-automata",
  "serde",
  "serde_json",
 ]

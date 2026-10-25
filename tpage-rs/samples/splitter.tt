@@ -1,0 +1,17 @@
+[% TAGS outline %]
+%% x = "outline"
+value: [% x %]
+[% a = 1 =%]
+%% x = 'not an outline: collapse removed the newline'
+x is [% x %]
+[% TAGS template1 %]
+%% y = 2 %%[% y %]%% "z" %]
+[% TAGS [@ @] %]
+[@ y @] [% not a tag %]
+[@ TAGS default @]
+[% x -%]   
+  next [%~ x ~%]  
+
+  end
+[%# comment -%]
+gone

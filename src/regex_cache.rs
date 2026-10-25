@@ -22,6 +22,8 @@ const MAX_ENTRIES: usize = 512;
 pub struct Flags {
     pub multi_line: bool,
     pub dot_matches_new_line: bool,
+    /// Perl's `/x`.
+    pub ignore_whitespace: bool,
 }
 
 type Cache<K, V> = LazyLock<Mutex<HashMap<K, Option<V>>>>;
@@ -57,6 +59,7 @@ pub fn regex_with(pattern: &str, flags: Flags) -> Option<regex::Regex> {
         regex::RegexBuilder::new(p)
             .multi_line(f.multi_line)
             .dot_matches_new_line(f.dot_matches_new_line)
+            .ignore_whitespace(f.ignore_whitespace)
             .build()
             .ok()
     })

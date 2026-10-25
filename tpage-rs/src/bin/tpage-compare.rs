@@ -118,9 +118,10 @@ fn run(cmd: &[String], file: &Path, args: &Args) -> Result<Output> {
         .wrap_err_with(|| format!("running {}", prog))
 }
 
-/// The error message from stderr: color-eyre's "0: ..." line for tpage-rs,
-/// otherwise the last line (Perl's `die`, after any warnings), minus Perl's
-/// " at FILE line N." suffix.
+/// The error message from stderr: color-eyre's "0: ..." line for tpage-rs;
+/// for Perl, the first "TYPE error - ..." line (parse errors continue on a
+/// second line), else the last line (`die` comes after any warnings).
+/// Perl's " at FILE line N." suffix is removed.
 fn error_summary(stderr: &[u8]) -> String {
     let text = String::from_utf8_lossy(stderr);
     let text = text.replace("\u{1b}[91m", "").replace("\u{1b}[0m", "");
@@ -132,6 +133,7 @@ fn error_summary(stderr: &[u8]) -> String {
     let line = lines
         .iter()
         .find_map(|l| l.strip_prefix("0: "))
+        .or_else(|| lines.iter().copied().find(|l| l.contains(" error - ")))
         .or_else(|| lines.last().copied())
         .unwrap_or("");
     match line.rfind(" at ") {

@@ -1,6 +1,7 @@
 use std::{collections::HashSet, sync::LazyLock};
 
 use regex::RegexBuilder;
+use regex_automata::{meta, util::syntax, Anchored, Input};
 
 use crate::{
     constants::{CHOMP_ALL, CHOMP_COLLAPSE, CHOMP_GREEDY, CHOMP_NONE},
@@ -67,30 +68,86 @@ pub fn get_tag_style(name: &str) -> Option<(&'static str, &'static str, Option<&
     }
 }
 
-pub fn build_splitter_regex(
-    start: &str,
-    end: &str,
-    outline: Option<&str>,
-) -> Result<regex::Regex, String> {
-    let (pat, multi_line) = match outline {
-        Some(out) => (
-            format!(r"\A(.*?)(?:(?:^{out}(.*?)(?:\n|\z))|(?:{start}(.*?){end}))"),
-            true,
-        ),
-        None => (format!(r"\A(.*?)(?:{start}(.*?){end})"), false),
-    };
-    let flags = regex_cache::Flags {
-        multi_line,
-        dot_matches_new_line: true,
-    };
-    regex_cache::regex_with(&pat, flags).ok_or_else(|| {
-        // Recompile uncached to report why the pattern is invalid.
-        RegexBuilder::new(&pat)
-            .build()
-            .err()
-            .map(|e| e.to_string())
-            .unwrap_or_default()
-    })
+/// Finds the next directive, replacing Perl's `text_splitter` regex
+///
+/// ```text
+/// \A(.*?)(?: (?:^$out(.*?)(?:\n|$)) | (?:$start(.*?)$end) )   /msx
+/// ```
+///
+/// with capture-free `find`s.  Capture groups force the regex crate onto
+/// its slower engines over the whole match, which here includes all the
+/// text before the tag; plain `find` runs on the DFA with literal
+/// prefilters (memchr/memmem for the usual literal tags).
+pub struct Splitter {
+    start: regex::Regex,
+    end: regex::Regex,
+    outline: Option<regex::Regex>,
+}
+
+/// Byte offsets of one directive within the searched text.
+struct Split {
+    /// End of the text preceding the tag (`$1`).
+    pre_end: usize,
+    /// The directive contents (`$2` / `$3`).
+    dir: std::ops::Range<usize>,
+    /// End of the whole match, i.e. how much text was consumed.
+    end: usize,
+}
+
+impl Splitter {
+    pub fn new(start: &str, end: &str, outline: Option<&str>) -> Result<Self, String> {
+        let compile = |pat: String, multi_line: bool| {
+            let flags = regex_cache::Flags {
+                multi_line,
+                dot_matches_new_line: true,
+                ignore_whitespace: true,
+            };
+            regex_cache::regex_with(&pat, flags).ok_or_else(|| {
+                // Recompile uncached to report why the pattern is invalid.
+                RegexBuilder::new(&pat)
+                    .build()
+                    .err()
+                    .map(|e| e.to_string())
+                    .unwrap_or_default()
+            })
+        };
+        Ok(Self {
+            start: compile(format!("(?:{start})"), false)?,
+            end: compile(format!("(?:{end})"), false)?,
+            outline: outline
+                .map(|out| compile(format!("^(?:{out})"), true))
+                .transpose()?,
+        })
+    }
+
+    /// The leftmost directive in `hay`, preferring an outline tag when both
+    /// kinds start at the same place (the regex alternation's order).
+    fn next(&self, hay: &str) -> Option<Split> {
+        let outline = |m: regex::Match| {
+            let eol = memchr::memchr(b'\n', &hay.as_bytes()[m.end()..]).map(|i| m.end() + i);
+            Split {
+                pre_end: m.start(),
+                dir: m.end()..eol.unwrap_or(hay.len()),
+                end: eol.map_or(hay.len(), |i| i + 1),
+            }
+        };
+        let tag = self.start.find(hay);
+        let out = self.outline.as_ref().and_then(|re| re.find(hay));
+        match (tag, out) {
+            (Some(t), Some(o)) if o.start() <= t.start() => Some(outline(o)),
+            (Some(t), o) => match self.end.find_at(hay, t.end()) {
+                Some(e) => Some(Split {
+                    pre_end: t.start(),
+                    dir: t.end()..e.start(),
+                    end: e.end(),
+                }),
+                // No end tag after the first start tag means none after any
+                // later one either, so only an outline tag can still match.
+                None => o.map(outline),
+            },
+            (None, o) => o.map(outline),
+        }
+    }
 }
 
 fn chomp_char_to_mode(c: char) -> Option<usize> {
@@ -144,28 +201,30 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
     let interp = style.interpolate;
     let anycase = style.anycase;
 
-    let mut split_re = build_splitter_regex(&start, &end, out.as_deref())?;
-    let mut remaining = text.to_string();
+    let mut splitter = Splitter::new(&start, &end, out.as_deref())?;
+    // Perl consumes `$text` with s///, so each search starts afresh at the
+    // start of what is left (which matters for the outline tag's `^`).  We
+    // track that as an offset into `text`, plus whether a collapsing
+    // post-chomp has left a single space in front of it.
+    let mut pos = 0;
+    let mut lead_space = false;
     let mut line: usize = 1;
 
-    while let Some(caps) = split_re.captures(&remaining) {
-        let full_match_len = caps.get(0).unwrap().end();
-        let mut pre = caps
-            .get(1)
-            .map(|m| m.as_str().to_string())
-            .unwrap_or_default();
-        let mut dir = if out.is_some() {
-            caps.get(2)
-                .or_else(|| caps.get(3))
-                .map(|m| m.as_str().to_string())
-                .unwrap_or_default()
+    loop {
+        let spaced;
+        let hay: &str = if lead_space {
+            spaced = format!(" {}", &text[pos..]);
+            &spaced
         } else {
-            caps.get(2)
-                .map(|m| m.as_str().to_string())
-                .unwrap_or_default()
+            &text[pos..]
         };
-
-        remaining.drain(..full_match_len);
+        let Some(split) = splitter.next(hay) else {
+            break;
+        };
+        let mut pre = hay[..split.pre_end].to_string();
+        let mut dir = hay[split.dir.clone()].to_string();
+        pos += split.end - usize::from(lead_space);
+        lead_space = false;
 
         let mut prelines = pre.bytes().filter(|&b| b == b'\n').count();
         let mut dirlines = dir.bytes().filter(|&b| b == b'\n').count();
@@ -238,29 +297,26 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
         dir.truncate(new_dir_len);
 
         let chomp = post_flag.unwrap_or(postchomp);
+        let remaining = &text[pos..];
         if chomp != CHOMP_NONE && !remaining.is_empty() {
             match chomp {
                 CHOMP_ALL => {
-                    if let Some(m) = POST_CHOMP_ALL_RE.find(&remaining) {
-                        let m_end = m.end();
-                        remaining.drain(..m_end);
+                    if let Some(m) = POST_CHOMP_ALL_RE.find(remaining) {
+                        pos += m.end();
                         postlines += 1;
                     }
                 }
                 CHOMP_COLLAPSE => {
-                    if let Some(m) = POST_CHOMP_WS_RE.find(&remaining) {
-                        let nl_count = m.as_str().bytes().filter(|&b| b == b'\n').count();
-                        postlines += nl_count;
-                        let m_end = m.end();
-                        remaining.replace_range(..m_end, " ");
+                    if let Some(m) = POST_CHOMP_WS_RE.find(remaining) {
+                        postlines += m.as_str().bytes().filter(|&b| b == b'\n').count();
+                        pos += m.end();
+                        lead_space = true;
                     }
                 }
                 CHOMP_GREEDY => {
-                    if let Some(m) = POST_CHOMP_WS_RE.find(&remaining) {
-                        let nl_count = m.as_str().bytes().filter(|&b| b == b'\n').count();
-                        postlines += nl_count;
-                        let m_end = m.end();
-                        remaining.drain(..m_end);
+                    if let Some(m) = POST_CHOMP_WS_RE.find(remaining) {
+                        postlines += m.as_str().bytes().filter(|&b| b == b'\n').count();
+                        pos += m.end();
                     }
                 }
                 _ => {}
@@ -293,13 +349,13 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
                     start = regex::escape(parts[0]);
                     end = regex::escape(parts[1]);
                     out = parts.get(2).map(|s| regex::escape(s));
-                    split_re = build_splitter_regex(&start, &end, out.as_deref())?;
+                    splitter = Splitter::new(&start, &end, out.as_deref())?;
                 } else if parts.len() == 1 {
                     if let Some((s, e, o)) = get_tag_style(parts[0]) {
                         start = s.to_string();
                         end = e.to_string();
                         out = o.map(|x| x.to_string());
-                        split_re = build_splitter_regex(&start, &end, out.as_deref())?;
+                        splitter = Splitter::new(&start, &end, out.as_deref())?;
                     }
                 }
             } else {
@@ -320,6 +376,11 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
         line += dirlines + postlines;
     }
 
+    let remaining = if lead_space {
+        format!(" {}", &text[pos..])
+    } else {
+        text[pos..].to_string()
+    };
     if !remaining.is_empty() {
         if interp {
             tokens.push(SplitChunk::IText {
@@ -334,16 +395,26 @@ pub fn split_text(text: &str, style: &ParserStyle) -> Result<Vec<SplitChunk>, St
     Ok(tokens)
 }
 
-// Perl's pattern bounds the text run at {1,3000} to dodge its regex
-// recursion limit.  The regex crate would expand that into 3000 copies of
-// the sub-NFA (~20ms to build), and an unbounded run only merges what Perl
-// emits as adjacent text chunks, so `+` gives identical output.
-static INTERP_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"((?:\\.|[^\$])+)|(\$(?:(?:\{([^\}]*)\})|([\w\.]+)))")
-        .dot_matches_new_line(true)
-        .build()
+/// Build a multi-pattern regex for capture-free tokenising: a search
+/// reports which pattern matched (leftmost-first, ties to the earlier
+/// pattern, just like one alternation), so the patterns need no capture
+/// groups and `search` can stay on the DFA engines.
+fn multi_regex(patterns: &[&str]) -> meta::Regex {
+    meta::Regex::builder()
+        .syntax(syntax::Config::new().dot_matches_new_line(true))
+        .build_many(patterns)
         .unwrap()
-});
+}
+
+/// Perl's `((?:\\.|[^\$]){1,3000})|(\$(?:(?:\{([^\}]*)\})|([\w\.]+)))`, split
+/// into its alternatives.  Perl bounds the text run at {1,3000} to dodge
+/// its regex recursion limit; regex-automata would expand that into 3000
+/// copies of the sub-NFA, and an unbounded run only merges what Perl emits
+/// as adjacent text chunks, so `+` gives identical output.
+const INTERP_TEXT: usize = 0;
+const INTERP_BRACED: usize = 1;
+static INTERP_RE: LazyLock<meta::Regex> =
+    LazyLock::new(|| multi_regex(&[r"(?:\\.|[^\$])+", r"\$\{[^\}]*\}", r"\$[\w\.]+"]));
 
 pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<SplitChunk> {
     let mut chunks = Vec::new();
@@ -351,41 +422,37 @@ pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<Split
     let bytes = text.as_bytes();
 
     while pos < text.len() {
-        if let Some(caps) = INTERP_RE.captures(&text[pos..]) {
-            let m0 = caps.get(0).unwrap();
-            if m0.start() > 0 {
+        if let Some(m) = INTERP_RE.search(&Input::new(text).span(pos..text.len())) {
+            if m.start() > pos {
                 // Unmatched '$' before match
-                let skipped = &text[pos..pos + m0.start()];
+                let skipped = &text[pos..m.start()];
                 line += skipped.bytes().filter(|&b| b == b'\n').count();
                 chunks.push(SplitChunk::Text(skipped.to_string()));
-                pos += m0.start();
+                pos = m.start();
                 continue;
             }
-            pos += m0.end();
+            pos = m.end();
+            let matched = &text[m.range()];
 
-            if let Some(pre_m) = caps.get(1) {
-                let pre = pre_m.as_str();
-                line += pre.bytes().filter(|&b| b == b'\n').count();
-                let unescaped = pre.replace(r"\$", "$");
-                chunks.push(SplitChunk::Text(unescaped));
-            } else if let Some(dir_m) = caps.get(2) {
-                let dir = dir_m.as_str();
-                let var = caps
-                    .get(3)
-                    .or_else(|| caps.get(4))
-                    .map(|m| m.as_str())
-                    .unwrap_or("");
+            if m.pattern().as_usize() == INTERP_TEXT {
+                line += matched.bytes().filter(|&b| b == b'\n').count();
+                chunks.push(SplitChunk::Text(matched.replace(r"\$", "$")));
+            } else {
+                let var = if m.pattern().as_usize() == INTERP_BRACED {
+                    &matched[2..matched.len() - 1]
+                } else {
+                    &matched[1..]
+                };
+                line += matched.bytes().filter(|&b| b == b'\n').count();
                 if !var.is_empty() {
-                    line += dir.bytes().filter(|&b| b == b'\n').count();
                     let dir_tokens = tokenise_directive(var, anycase);
                     chunks.push(SplitChunk::Directive {
-                        text: dir.to_string(),
+                        text: matched.to_string(),
                         line: line.to_string(),
                         tokens: dir_tokens,
                     });
                 } else {
-                    line += dir.bytes().filter(|&b| b == b'\n').count();
-                    chunks.push(SplitChunk::Text(dir.to_string()));
+                    chunks.push(SplitChunk::Text(matched.to_string()));
                 }
             }
         } else {
@@ -407,14 +474,20 @@ pub fn interpolate_text(text: &str, mut line: usize, anycase: bool) -> Vec<Split
     chunks
 }
 
-static TOKEN_REST_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(
-        r"\A(?:\s+|\#[^\n]*)|(?:\A(-?\d+(?:\.\d+)?))|(?:\A(\/?\w+(?:(?:\/|::?)\w*)+|\/\w+))|(?:\A(\w+))|(?:\A([(){}\[\]:;,\/\\]|[+\-*]|\$\{?|=>|[=!<>]?=|[!<>]|&&?|\|\|?|\.\.?|\S+))",
-    )
-    .multi_line(true)
-    .dot_matches_new_line(true)
-    .build()
-    .unwrap()
+/// The alternatives of Perl's tokenise_directive regex (after quoted
+/// strings), in order; the matching pattern's index replaces its captures.
+const TOK_SKIP: usize = 0;
+const TOK_NUMBER: usize = 1;
+const TOK_FILENAME: usize = 2;
+const TOK_WORD: usize = 3;
+static TOKEN_REST_RE: LazyLock<meta::Regex> = LazyLock::new(|| {
+    multi_regex(&[
+        r"\s+|\#[^\n]*",
+        r"-?\d+(?:\.\d+)?",
+        r"\/?\w+(?:(?:\/|::?)\w*)+|\/\w+",
+        r"\w+",
+        r"[(){}\[\]:;,\/\\]|[+\-*]|\$\{?|=>|[=!<>]?=|[!<>]|&&?|\|\|?|\.\.?|\S+",
+    ])
 });
 
 static ANYCASE_BEFORE_RE: LazyLock<regex::Regex> =
@@ -518,17 +591,21 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
             }
         }
 
-        let slice = &text[pos..];
-        if let Some(caps) = TOKEN_REST_RE.captures(slice) {
-            let m0 = caps.get(0).unwrap();
-            pos += m0.end();
+        let input = Input::new(text)
+            .span(pos..text.len())
+            .anchored(Anchored::Yes);
+        if let Some(m) = TOKEN_REST_RE.search(&input) {
+            pos = m.end();
+            let token = &text[m.range()];
+            let kind = m.pattern().as_usize();
 
-            if let Some(num_m) = caps.get(1) {
-                tokens.push(("NUMBER".to_string(), num_m.as_str().to_string()));
-            } else if let Some(file_m) = caps.get(2) {
-                tokens.push(("FILENAME".to_string(), file_m.as_str().to_string()));
-            } else if let Some(ident_m) = caps.get(3) {
-                let token = ident_m.as_str();
+            if kind == TOK_SKIP {
+                // whitespace or comment
+            } else if kind == TOK_NUMBER {
+                tokens.push(("NUMBER".to_string(), token.to_string()));
+            } else if kind == TOK_FILENAME {
+                tokens.push(("FILENAME".to_string(), token.to_string()));
+            } else if kind == TOK_WORD {
                 let uctoken = if anycase {
                     let prev_blocks_fold = tokens
                         .last()
@@ -549,8 +626,7 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
                 } else {
                     tokens.push(("IDENT".to_string(), token.to_string()));
                 }
-            } else if let Some(sym_m) = caps.get(4) {
-                let token = sym_m.as_str();
+            } else {
                 let uctoken = if anycase {
                     token.to_ascii_uppercase()
                 } else {
@@ -562,10 +638,13 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
                     tokens.push(("UNQUOTED".to_string(), token.to_string()));
                 }
             }
-            // else whitespace or comment: skip
         } else {
             // Advance by 1 char if nothing matched
-            let ch_len = slice.chars().next().map(|c| c.len_utf8()).unwrap_or(1);
+            let ch_len = text[pos..]
+                .chars()
+                .next()
+                .map(|c| c.len_utf8())
+                .unwrap_or(1);
             pos += ch_len;
         }
     }
