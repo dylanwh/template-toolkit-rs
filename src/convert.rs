@@ -26,32 +26,46 @@ use crate::{
     value::Value,
 };
 
+/// Why a template value could not be converted.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConvError {
+    /// The wrong kind of value; names what was expected (e.g. `"list"`).
+    Expected(&'static str),
+    /// Any other failure, such as a serde "missing field" error.
+    Message(String),
+}
+
+impl From<&'static str> for ConvError {
+    fn from(expected: &'static str) -> Self {
+        ConvError::Expected(expected)
+    }
+}
+
 /// Conversion from a template value to a Rust argument type.
 pub trait FromValue: Sized {
-    /// Convert `value`, or describe what was expected (e.g. `"list"`).
-    fn from_value(value: &Value) -> Result<Self, &'static str>;
+    fn from_value(value: &Value) -> Result<Self, ConvError>;
 }
 
 impl FromValue for Value {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         Ok(value.clone())
     }
 }
 
 impl FromValue for String {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         Ok(value.to_tt_string())
     }
 }
 
 impl FromValue for bool {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         Ok(value.is_truthy())
     }
 }
 
 impl FromValue for f64 {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         Ok(value.to_number())
     }
 }
@@ -59,8 +73,9 @@ impl FromValue for f64 {
 macro_rules! from_value_int {
     ($($t:ty),*) => {$(
         impl FromValue for $t {
-            fn from_value(value: &Value) -> Result<Self, &'static str> {
-                <$t>::try_from(value.to_int()).map_err(|_| concat!("an integer in range for ", stringify!($t)))
+            fn from_value(value: &Value) -> Result<Self, ConvError> {
+                <$t>::try_from(value.to_int())
+                    .map_err(|_| ConvError::Expected(concat!("an integer in range for ", stringify!($t))))
             }
         }
     )*};
@@ -69,7 +84,7 @@ from_value_int!(i64, i32, u32, usize);
 
 /// Missing or undefined arguments are `None`.
 impl<T: FromValue> FromValue for Option<T> {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         if value.is_defined() {
             T::from_value(value).map(Some)
         } else {
@@ -79,23 +94,23 @@ impl<T: FromValue> FromValue for Option<T> {
 }
 
 impl<T: FromValue> FromValue for Vec<T> {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         match value {
             Value::List(items) => items.borrow().iter().map(T::from_value).collect(),
-            _ => Err("list"),
+            _ => Err(ConvError::Expected("list")),
         }
     }
 }
 
 impl<T: FromValue> FromValue for HashMap<String, T> {
-    fn from_value(value: &Value) -> Result<Self, &'static str> {
+    fn from_value(value: &Value) -> Result<Self, ConvError> {
         match value {
             Value::Hash(map) => map
                 .borrow()
                 .iter()
                 .map(|(k, v)| Ok((k.clone(), T::from_value(v)?)))
                 .collect(),
-            _ => Err("hash"),
+            _ => Err(ConvError::Expected("hash")),
         }
     }
 }
@@ -202,15 +217,24 @@ impl<T: IntoValue> IntoResult for Result<T, ControlFlow> {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Rest<T>(pub Vec<T>);
 
-fn bad_argument(pos: usize, fname: &str, expected: &str, got: &Value) -> ControlFlow {
-    let got = match got.ref_type() {
+/// A short description of a value's kind for error messages: `ARRAY`,
+/// `HASH`, an object's type, `undef` or `scalar`.
+pub(crate) fn kind_of(value: &Value) -> String {
+    match value.ref_type() {
         t if !t.is_empty() => t,
-        _ if !got.is_defined() => "undef".to_string(),
+        _ if !value.is_defined() => "undef".to_string(),
         _ => "scalar".to_string(),
+    }
+}
+
+fn bad_argument(pos: usize, fname: &str, error: ConvError, got: &Value) -> ControlFlow {
+    let detail = match error {
+        ConvError::Expected(expected) => format!("expected {expected}, got {}", kind_of(got)),
+        ConvError::Message(message) => message,
     };
     ControlFlow::Exception(TemplateException::new(
         "undef",
-        format!("bad argument #{pos} to `{fname}`: expected {expected}, got {got}"),
+        format!("bad argument #{pos} to `{fname}`: {detail}"),
     ))
 }
 
@@ -224,7 +248,7 @@ impl<T: FromValue> FromArg for T {
     fn from_arg(args: &[Value], pos: &mut usize, fname: &str) -> Result<Self, ControlFlow> {
         let value = args.get(*pos).unwrap_or(&Value::Undefined);
         *pos += 1;
-        T::from_value(value).map_err(|expected| bad_argument(*pos, fname, expected, value))
+        T::from_value(value).map_err(|e| bad_argument(*pos, fname, e, value))
     }
 }
 
@@ -234,10 +258,7 @@ impl<T: FromValue> FromArg for Rest<T> {
         let mut out = Vec::with_capacity(rest.len());
         for value in rest {
             *pos += 1;
-            out.push(
-                T::from_value(value)
-                    .map_err(|expected| bad_argument(*pos, fname, expected, value))?,
-            );
+            out.push(T::from_value(value).map_err(|e| bad_argument(*pos, fname, e, value))?);
         }
         Ok(Rest(out))
     }
