@@ -24,9 +24,11 @@ correct these in bulk in a way that does not cause me concern - either it will t
 or `expect()` with `.map_err_with(|| unreachable!())`. When a custom harness forbids all of those, it will use `unwrap_or`
 which makes the problems impossible to find.
 
-A fully-loaded koolaid man will suggest the fix for this is fuzzing, and I suppose
+A [fully-loaded kool-aid man][fully-loaded kool-aid man] will suggest the fix for this is fuzzing, and I suppose
 there is truth there. I think if I find a use for this crate I'll go through and
 use my human reasoning on each unwrap().
+
+[fully-loaded kool-aid man]: https://en.wiktionary.org/wiki/drink_the_Kool-Aid
 
 ## Technology
 
