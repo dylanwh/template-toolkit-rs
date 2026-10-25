@@ -6,7 +6,7 @@ use template_toolkit::Template;
 
 #[test]
 fn file() {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let file = format!("{}/src/foo", dir);
     let m = std::fs::metadata(&file).unwrap();
     let mut v = vec![
@@ -28,7 +28,7 @@ fn file() {
     ];
     let _ = &mut v;
     test_expect(
-        include_str!("corpus/file.tt"),
+        &tt_test("file"),
         vec![("default", Template::new())],
         vars(v),
     );

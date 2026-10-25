@@ -24,7 +24,7 @@ fn copy_dir(from: &Path, to: &Path) {
 // copy instead so the source tree stays clean.
 fn setup() -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("compile1_src");
-    copy_dir(Path::new("Template-Toolkit-3.009/t/test/src"), &dir);
+    copy_dir(Path::new("corpora/Template-Toolkit-3.009/t/test/src"), &dir);
     dir
 }
 
@@ -34,7 +34,7 @@ fn compile1() {
     let zero = dir.join("divisionbyzero").to_string_lossy().to_string();
     let consts: HashMap<String, Value> = [("zero".to_string(), Value::Str(zero))].into();
     // EVAL_PERL is out of scope: the first upstream case ([% INCLUDE evalperl %]) is skipped.
-    let corpus = include_str!("corpus/compile1.tt");
+    let corpus = &tt_test("compile1");
     let skip = corpus.find("-- test --").unwrap();
     let skip2 = skip + 1 + corpus[skip + 1..].find("-- test --").unwrap();
     let tt = Template::builder()

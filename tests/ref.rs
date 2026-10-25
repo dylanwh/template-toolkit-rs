@@ -46,9 +46,5 @@ fn ref_() {
             }),
         ),
     ]);
-    test_expect(
-        include_str!("corpus/ref.tt"),
-        vec![("default", Template::new())],
-        params,
-    );
+    test_expect(&tt_test("ref"), vec![("default", Template::new())], params);
 }

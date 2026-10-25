@@ -99,9 +99,5 @@ fn view() {
         ])
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/view.tt"),
-        vec![("default", cfg)],
-        params,
-    );
+    test_expect(&tt_test("view"), vec![("default", cfg)], params);
 }

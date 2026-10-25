@@ -42,5 +42,5 @@ fn text() {
             Template::builder().interpolate(true).build().unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/text.tt"), procs, v);
+    test_expect(&tt_test("text"), procs, v);
 }

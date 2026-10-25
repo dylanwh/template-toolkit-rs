@@ -40,5 +40,5 @@ fn tags() {
                 .unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/tags.tt"), procs, params);
+    test_expect(&tt_test("tags"), procs, params);
 }

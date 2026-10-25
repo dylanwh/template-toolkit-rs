@@ -87,7 +87,7 @@ fn scalar() {
         ),
     ]);
     test_expect(
-        include_str!("corpus/scalar.tt"),
+        &tt_test("scalar"),
         vec![("default", Template::new())],
         params,
     );

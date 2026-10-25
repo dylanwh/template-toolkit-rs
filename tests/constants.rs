@@ -95,7 +95,7 @@ fn constants_corpus() {
         ("constants", Value::hash(make_constants())),
     ]);
     test_expect(
-        include_str!("corpus/constants.tt"),
+        &tt_test("constants"),
         vec![("tt1", tt1), ("tt2", tt2), ("tt3", tt3)],
         v,
     );

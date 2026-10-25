@@ -54,9 +54,5 @@ fn date_offset() {
         .post_chomp(template_toolkit::constants::CHOMP_ALL)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/date_offset.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("date_offset"), vec![("default", tt)], params);
 }

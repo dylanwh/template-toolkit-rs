@@ -7,6 +7,37 @@ use template_toolkit::{value::Value, Template};
 
 pub type Vars = HashMap<String, Value>;
 
+/// The Perl TT distribution scripts/fetch-corpora.sh unpacks.  The ported
+/// tests read their cases (t/*.t) and fixtures (t/test) from it, as they
+/// aren't ours to ship.
+pub const TT_DIST: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/corpora/Template-Toolkit-3.009"
+);
+
+/// The test cases of upstream `t/{name}.t`: everything after its
+/// `__DATA__` or `__END__` line.
+pub fn tt_test(name: &str) -> String {
+    String::from_utf8(tt_test_bytes(name)).unwrap_or_else(|e| panic!("t/{name}.t: {e}"))
+}
+
+/// `tt_test` for the few that aren't UTF-8.
+pub fn tt_test_bytes(name: &str) -> Vec<u8> {
+    let path = format!("{TT_DIST}/t/{name}.t");
+    let text = std::fs::read(&path)
+        .unwrap_or_else(|e| panic!("{path}: {e} (run scripts/fetch-corpora.sh to fetch Perl TT)"));
+    let start = [&b"\n__DATA__\n"[..], b"\n__END__\n"]
+        .iter()
+        .filter_map(|marker| {
+            text.windows(marker.len())
+                .position(|w| w == *marker)
+                .map(|i| i + marker.len())
+        })
+        .min()
+        .unwrap_or_else(|| panic!("{path}: no __DATA__ or __END__ section"));
+    text[start..].to_vec()
+}
+
 pub fn hash(pairs: Vec<(&str, Value)>) -> Value {
     Value::hash(pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
 }

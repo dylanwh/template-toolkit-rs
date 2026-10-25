@@ -19,7 +19,7 @@ fn outline() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/outline.tt"),
+        &tt_test("outline"),
         vec![
             ("default", vanilla),
             ("outline", outline),

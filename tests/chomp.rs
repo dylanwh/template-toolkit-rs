@@ -69,7 +69,7 @@ fn chomp() {
     let tt2 = Template::builder()
         .blocks(blocks())
         .include_path(vec![IncludePathItem::Path(
-            "Template-Toolkit-3.009/t/test/lib".into(),
+            "corpora/Template-Toolkit-3.009/t/test/lib".into(),
         )])
         .build()
         .unwrap();
@@ -127,5 +127,5 @@ fn chomp_corpus() {
         ("tt_post_all", b(0, CHOMP_ALL)),
         ("tt_post_coll", b(0, CHOMP_COLLAPSE)),
     ];
-    test_expect(include_str!("corpus/chomp.tt"), tt, vars(vec![]));
+    test_expect(&tt_test("chomp"), tt, vars(vec![]));
 }

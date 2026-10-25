@@ -32,11 +32,11 @@ fn try_() {
     );
     let tt = Template::builder()
         .include_path(vec![
-            IncludePathItem::Path("Template-Toolkit-3.009/t/test/lib".into()),
+            IncludePathItem::Path("corpora/Template-Toolkit-3.009/t/test/lib".into()),
             IncludePathItem::Path("test/lib".into()),
         ])
         .post_chomp(CHOMP_ONE)
         .build()
         .unwrap();
-    test_expect(include_str!("corpus/try.tt"), vec![("default", tt)], v);
+    test_expect(&tt_test("try"), vec![("default", tt)], v);
 }

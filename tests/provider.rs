@@ -38,8 +38,8 @@ impl TemplateObject for DPaths {
 #[test]
 fn provider() {
     let root = env!("CARGO_MANIFEST_DIR");
-    let dir = "Template-Toolkit-3.009/t/test/src".to_string();
-    let lib = "Template-Toolkit-3.009/t/test/lib".to_string();
+    let dir = "corpora/Template-Toolkit-3.009/t/test/src".to_string();
+    let lib = "corpora/Template-Toolkit-3.009/t/test/lib".to_string();
     let file = "foo";
     let relfile = format!("./{}/{}", dir, file);
     let absfile = format!("{}/{}/{}", root, dir, file);
@@ -153,7 +153,7 @@ fn provider() {
         ("fixfile", fixfile),
     ]);
     test_expect(
-        include_str!("corpus/provider.tt"),
+        &tt_test("provider"),
         vec![
             ("ttinc", ttinc),
             ("ttabs", ttabs),

@@ -66,5 +66,5 @@ fn parser() {
         "data".into(),
         hash(vec![("first", Value::Int(11)), ("last", Value::Int(42))]),
     );
-    test_expect(include_str!("corpus/parser.tt"), tt, replace);
+    test_expect(&tt_test("parser"), tt, replace);
 }

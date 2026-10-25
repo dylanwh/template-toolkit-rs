@@ -11,7 +11,7 @@ use template_toolkit::Template;
 #[test]
 fn vmethods_replace() {
     test_expect(
-        include_str!("corpus/vmethods_replace.tt"),
+        &tt_test("vmethods/replace"),
         vec![("default", Template::new())],
         vars(vec![]),
     );

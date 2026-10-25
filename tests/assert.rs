@@ -30,9 +30,5 @@ fn assert() {
         ("subref", Value::function(|_, _| Ok(Value::Undefined))),
         ("nothing", Value::Undefined),
     ]);
-    test_expect(
-        include_str!("corpus/assert.tt"),
-        vec![("default", Template::new())],
-        v,
-    );
+    test_expect(&tt_test("assert"), vec![("default", Template::new())], v);
 }

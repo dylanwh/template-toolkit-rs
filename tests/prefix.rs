@@ -9,7 +9,7 @@ use template_toolkit::{
 
 fn prov(dir: &str) -> Rc<RefCell<Provider>> {
     let d = format!(
-        "{}/Template-Toolkit-3.009/t/test/{}",
+        "{}/corpora/Template-Toolkit-3.009/t/test/{}",
         env!("CARGO_MANIFEST_DIR"),
         dir
     );
@@ -34,9 +34,5 @@ fn prefix() {
         .prefix_map(pm)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/prefix.tt"),
-        vec![("default", tt)],
-        vars(vec![]),
-    );
+    test_expect(&tt_test("prefix"), vec![("default", tt)], vars(vec![]));
 }

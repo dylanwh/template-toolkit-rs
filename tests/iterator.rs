@@ -79,9 +79,5 @@ fn iterator() {
         strs(&["foo", "bar", "baz", "qux", "wiz", "woz", "waz"]),
     )]);
     let tt = Template::builder().post_chomp(CHOMP_ALL).build().unwrap();
-    test_expect(
-        include_str!("corpus/iterator.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("iterator"), vec![("default", tt)], params);
 }

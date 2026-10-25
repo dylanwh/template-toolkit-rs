@@ -11,9 +11,5 @@ use template_toolkit::Template;
 #[test]
 fn switch() {
     let tt = Template::builder().post_chomp(CHOMP_ONE).build().unwrap();
-    test_expect(
-        include_str!("corpus/switch.tt"),
-        vec![("default", tt)],
-        callsign(),
-    );
+    test_expect(&tt_test("switch"), vec![("default", tt)], callsign());
 }

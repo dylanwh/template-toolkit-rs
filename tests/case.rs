@@ -23,7 +23,7 @@ fn case() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/case.tt"),
+        &tt_test("case"),
         vec![("default", def), ("anycase", any)],
         callsign(),
     );

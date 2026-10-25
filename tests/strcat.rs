@@ -5,7 +5,7 @@ use template_toolkit::Template;
 #[test]
 fn strcat() {
     test_expect(
-        include_str!("corpus/strcat.tt"),
+        &tt_test("strcat"),
         vec![("default", Template::new())],
         vars(vec![]),
     );

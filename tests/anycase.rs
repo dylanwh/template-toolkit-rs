@@ -23,7 +23,7 @@ fn anycase() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/anycase.tt"),
+        &tt_test("anycase"),
         vec![("default", vanilla), ("anycase", anycase)],
         callsign(),
     );

@@ -85,7 +85,7 @@ fn fac(what: &'static str) -> Rc<dyn PluginFactory> {
 #[test]
 fn plugins() {
     let src = format!(
-        "{}/Template-Toolkit-3.009/t/test/lib",
+        "{}/corpora/Template-Toolkit-3.009/t/test/lib",
         env!("CARGO_MANIFEST_DIR")
     );
     let inc = || {
@@ -131,7 +131,7 @@ fn plugins() {
     let tt5 = Template::builder().build().unwrap();
 
     test_expect(
-        include_str!("corpus/plugins.tt"),
+        &tt_test("plugins"),
         vec![
             ("def", Template::new()),
             ("tt1", tt1),

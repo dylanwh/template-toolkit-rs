@@ -25,7 +25,7 @@ fn setup() -> (PathBuf, PathBuf) {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("compile4_test");
     let _ = std::fs::remove_dir_all(&root);
     copy_dir(
-        Path::new("Template-Toolkit-3.009/t/test/src"),
+        Path::new("corpora/Template-Toolkit-3.009/t/test/src"),
         &root.join("src"),
     );
     let cdir = root.join("tmp").join("cache");
@@ -64,7 +64,7 @@ fn compile4() {
         Value::Str(root.to_string_lossy().to_string()),
     )]);
     test_expect(
-        include_str!("corpus/compile4.tt"),
+        &tt_test("compile4"),
         vec![("default", config(&root, cdir.to_str().unwrap()))],
         v,
     );

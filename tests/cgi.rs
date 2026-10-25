@@ -8,7 +8,7 @@ use template_toolkit::Template;
 // computed by CGI.pm itself) and is skipped.
 #[test]
 fn cgi() {
-    let corpus = include_str!("corpus/cgi.tt");
+    let corpus = &tt_test("cgi");
     let skip_from = corpus
         .find("-- test --\n[% FOREACH x = global.cgi.checkbox_group")
         .unwrap();

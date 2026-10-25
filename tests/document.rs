@@ -43,14 +43,14 @@ fn document() {
     assert_eq!(doc.get_meta("version").unwrap().to_number(), 3.14);
     assert!(doc.defblocks.contains_key("foo") && doc.defblocks.contains_key("bar"));
 
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let tproc = Template::builder()
         .include_path(vec![IncludePathItem::Path(format!("{dir}/src"))])
         .build()
         .unwrap();
     let mydoc = Value::Object(Rc::new(doc));
     test_expect(
-        include_str!("corpus/document.tt"),
+        &tt_test("document"),
         vec![("default", tproc)],
         vars(vec![("mydoc", mydoc)]),
     );

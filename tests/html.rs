@@ -10,9 +10,6 @@ fn html() {
     let params = vars(vec![("entities", Value::Int(1))]);
     let tt = Template::builder().build().unwrap();
     // corpus is ISO-8859-1 (as read byte-wise by Perl)
-    let corpus: String = include_bytes!("corpus/html.tt")
-        .iter()
-        .map(|&b| b as char)
-        .collect();
+    let corpus: String = tt_test_bytes("html").iter().map(|&b| b as char).collect();
     test_expect(&corpus, vec![("default", tt)], params);
 }

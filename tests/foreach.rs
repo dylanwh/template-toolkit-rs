@@ -104,7 +104,7 @@ fn foreach() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/foreach.tt"),
+        &tt_test("foreach"),
         vec![("default", template), ("debug", ttdebug)],
         params,
     );

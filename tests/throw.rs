@@ -11,7 +11,7 @@ use template_toolkit::Template;
 #[test]
 fn throw() {
     test_expect(
-        include_str!("corpus/throw.tt"),
+        &tt_test("throw"),
         vec![("default", Template::new())],
         vars(vec![]),
     );

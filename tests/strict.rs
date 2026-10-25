@@ -6,7 +6,7 @@ use template_toolkit::{value::Value, Template};
 fn strict() {
     let tt = Template::builder().strict(true).build().unwrap();
     test_expect(
-        include_str!("corpus/strict.tt"),
+        &tt_test("strict"),
         vec![("default", tt)],
         vars(vec![
             ("foo", Value::Int(10)),

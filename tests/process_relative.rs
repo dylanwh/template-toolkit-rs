@@ -1,6 +1,6 @@
 use template_toolkit::{provider::IncludePathItem, Template};
 
-const FILE: &str = "Template-Toolkit-3.009/t/test/dir/file1";
+const FILE: &str = "corpora/Template-Toolkit-3.009/t/test/dir/file1";
 
 fn run(tt: Template, f: &str) -> Option<String> {
     tt.process_file(f, None).ok()

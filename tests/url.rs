@@ -65,5 +65,5 @@ fn url() {
         ),
     ]);
     let tt = Template::builder().interpolate(true).build().unwrap();
-    test_expect(include_str!("corpus/url.tt"), vec![("default", tt)], params);
+    test_expect(&tt_test("url"), vec![("default", tt)], params);
 }

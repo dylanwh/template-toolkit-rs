@@ -159,9 +159,5 @@ fn vmethods_list() {
     ctx.define_vmethod("list", "jumble", jumble);
     ctx.define_vmethod("list", "oddnos", odd);
     ctx.define_vmethod("array", "jumblate", jumble);
-    test_expect(
-        include_str!("corpus/vmethods_list.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("vmethods/list"), vec![("default", tt)], params);
 }

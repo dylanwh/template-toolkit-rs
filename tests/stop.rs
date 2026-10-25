@@ -47,7 +47,7 @@ fn stop() {
         )))
     });
     test_expect(
-        include_str!("corpus/stop.tt"),
+        &tt_test("stop"),
         vec![("bare", ttbare), ("wrapped", ttwrap)],
         vars(vec![("halt", halt)]),
     );

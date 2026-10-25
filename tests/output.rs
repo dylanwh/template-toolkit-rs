@@ -7,7 +7,7 @@ use template_toolkit::{provider::IncludePathItem, value::Value, Template};
 #[test]
 fn output() {
     let dir = format!(
-        "{}/Template-Toolkit-3.009/t/test",
+        "{}/corpora/Template-Toolkit-3.009/t/test",
         env!("CARGO_MANIFEST_DIR")
     );
     let (f1, f2) = ("foo.bar", "foo.baz");

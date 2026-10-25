@@ -9,13 +9,13 @@ fn directive() {
     let post = Template::builder().post_chomp(CHOMP_ALL).build().unwrap();
     let trim = Template::builder()
         .include_path(vec![IncludePathItem::Path(
-            "Template-Toolkit-3.009/t/test/lib".into(),
+            "corpora/Template-Toolkit-3.009/t/test/lib".into(),
         )])
         .trim(true)
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/directive.tt"),
+        &tt_test("directive"),
         vec![("tt", tt), ("pre", pre), ("post", post), ("trim", trim)],
         callsign(),
     );

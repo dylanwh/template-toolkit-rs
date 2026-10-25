@@ -5,7 +5,7 @@ use template_toolkit::{provider::IncludePathItem, Template};
 #[test]
 fn process() {
     let base = format!(
-        "{}/Template-Toolkit-3.009/t/test",
+        "{}/corpora/Template-Toolkit-3.009/t/test",
         env!("CARGO_MANIFEST_DIR")
     );
     let ip = || {
@@ -35,7 +35,7 @@ fn process() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/process.tt"),
+        &tt_test("process"),
         vec![("tt1", tt1), ("tt2", tt2), ("tt3", tt3)],
         vars(vec![("title", "Joe Random Title".into())]),
     );

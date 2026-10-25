@@ -4,7 +4,7 @@ use template_toolkit::{provider::IncludePathItem, value::Value, Template};
 
 #[test]
 fn blocks() {
-    let lib = "Template-Toolkit-3.009/t/test/lib";
+    let lib = "corpora/Template-Toolkit-3.009/t/test/lib";
     let cwd = std::env::current_dir().unwrap();
     let dir = format!("{}/{}", cwd.display(), lib);
     let mk = |expose: bool| {
@@ -21,7 +21,7 @@ fn blocks() {
         ("dir", Value::Str(dir)),
     ]);
     test_expect(
-        include_str!("corpus/blocks.tt"),
+        &tt_test("blocks"),
         vec![("off", mk(false)), ("on", mk(true))],
         v,
     );

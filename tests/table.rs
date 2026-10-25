@@ -14,9 +14,5 @@ fn table() {
     let refs: Vec<&str> = alphabet.iter().map(|s| s.as_str()).collect();
     let params = vars(vec![("alphabet", strs(&refs)), ("empty", strs(&[]))]);
     let tt = Template::builder().post_chomp(CHOMP_ONE).build().unwrap();
-    test_expect(
-        include_str!("corpus/table.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("table"), vec![("default", tt)], params);
 }

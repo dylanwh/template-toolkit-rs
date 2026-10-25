@@ -7,7 +7,7 @@ use template_toolkit::Template;
 // out of scope, so only the first (plain) case is ported.
 #[test]
 fn factory() {
-    let corpus = include_str!("corpus/factory.tt");
+    let corpus = &tt_test("factory");
     let end = corpus.rfind("-- test --").unwrap();
     let v = vars(vec![(
         "foo",

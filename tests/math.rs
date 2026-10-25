@@ -5,11 +5,7 @@ use template_toolkit::Template;
 #[test]
 fn math() {
     let tt = Template::builder().build().unwrap();
-    test_expect(
-        include_str!("corpus/math.tt"),
-        vec![("default", tt)],
-        vars(vec![]),
-    );
+    test_expect(&tt_test("math"), vec![("default", tt)], vars(vec![]));
 }
 
 #[test]

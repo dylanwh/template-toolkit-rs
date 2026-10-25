@@ -10,7 +10,7 @@ fn skel() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/skel.tt"),
+        &tt_test("skel"),
         vec![("default", tt)],
         vars(vec![("a", "alpha".into()), ("b", "bravo".into())]),
     );

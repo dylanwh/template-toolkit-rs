@@ -53,9 +53,5 @@ fn while_() {
         .post_chomp(CHOMP_ONE)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/while.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("while"), vec![("default", tt)], params);
 }

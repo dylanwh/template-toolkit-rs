@@ -50,9 +50,5 @@ fn binop() {
         .post_chomp(CHOMP_ALL)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/binop.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("binop"), vec![("default", tt)], params);
 }

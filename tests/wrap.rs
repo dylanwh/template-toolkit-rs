@@ -11,7 +11,7 @@ use template_toolkit::Template;
 #[test]
 fn wrap() {
     test_expect(
-        include_str!("corpus/wrap.tt"),
+        &tt_test("wrap"),
         vec![("default", Template::new())],
         vars(vec![]),
     );

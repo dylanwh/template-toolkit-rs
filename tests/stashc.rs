@@ -24,7 +24,7 @@ fn stashc() {
     check_stash(&stash);
     let tt = Template::builder().stash(stash).build().unwrap();
     test_expect(
-        include_str!("corpus/stashc.tt"),
+        &tt_test("stashc"),
         vec![("default", tt)],
         Default::default(),
     );

@@ -13,7 +13,7 @@ use template_toolkit::{
 // string equality.
 
 fn mk() -> Template {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     Template::builder()
         .include_path(vec![
             IncludePathItem::Path(format!("{}/src", dir)),

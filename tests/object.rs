@@ -208,9 +208,5 @@ fn object() {
         ("getnum", Value::object(GetNumbersome)),
     ]));
     let tt = Template::builder().interpolate(true).build().unwrap();
-    test_expect(
-        include_str!("corpus/object.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("object"), vec![("default", tt)], params);
 }

@@ -64,5 +64,5 @@ fn args() {
     );
     v.insert("obj".into(), Value::object(MyObj));
     let tt = Template::builder().interpolate(true).build().unwrap();
-    test_expect(include_str!("corpus/args.tt"), vec![("default", tt)], v);
+    test_expect(&tt_test("args"), vec![("default", tt)], v);
 }

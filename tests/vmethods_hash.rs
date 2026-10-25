@@ -27,9 +27,5 @@ fn vmethods_hash() {
     ]);
     let tt = Template::new();
     tt.context().define_vmethod("hash", "dump", dump);
-    test_expect(
-        include_str!("corpus/vmethods_hash.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("vmethods/hash"), vec![("default", tt)], params);
 }

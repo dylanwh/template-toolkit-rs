@@ -233,5 +233,5 @@ fn vars_() {
                 .unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/vars.tt"), procs, params);
+    test_expect(&tt_test("vars"), procs, params);
 }

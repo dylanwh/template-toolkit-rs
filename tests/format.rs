@@ -15,9 +15,5 @@ fn format() {
         .post_chomp(CHOMP_ALL)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/format.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("format"), vec![("default", tt)], params);
 }

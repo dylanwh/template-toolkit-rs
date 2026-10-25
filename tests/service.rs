@@ -9,7 +9,7 @@ use template_toolkit::{
 #[test]
 fn service() {
     let dir = format!(
-        "{}/Template-Toolkit-3.009/t/test",
+        "{}/corpora/Template-Toolkit-3.009/t/test",
         env!("CARGO_MANIFEST_DIR")
     );
     let ip = || {
@@ -80,7 +80,7 @@ fn service() {
     let tt5 = wrapper_cfg(vec!["outer".into(), "inner".into()]);
 
     test_expect(
-        include_str!("corpus/service.tt"),
+        &tt_test("service"),
         vec![
             ("tt1", tt1),
             ("tt2", tt2),

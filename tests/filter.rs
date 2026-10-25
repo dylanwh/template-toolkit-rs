@@ -45,7 +45,7 @@ fn drop_perl_cases(corpus: &str) -> String {
 
 #[test]
 fn filter() {
-    let dir = "Template-Toolkit-3.009/t/test/tmp";
+    let dir = "corpora/Template-Toolkit-3.009/t/test/tmp";
     let file = "xyz";
     let (a, b, c, d) = ("alpha", "bravo", "charlie", "delta");
     let stderr = Rc::new(RefCell::new(String::new()));
@@ -180,7 +180,7 @@ fn filter() {
         })),
     );
 
-    let corpus = drop_perl_cases(include_str!("corpus/filter.tt"));
+    let corpus = drop_perl_cases(&tt_test("filter"));
     test_expect(&corpus, vec![("default", tt1), ("evalperl", tt2)], params);
 
     assert!(

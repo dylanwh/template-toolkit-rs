@@ -10,7 +10,7 @@ use template_toolkit::Template;
 
 #[test]
 fn wrapper() {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let tt = Template::builder()
         .include_path(vec![
             IncludePathItem::Path(format!("{}/src", dir)),
@@ -19,9 +19,5 @@ fn wrapper() {
         .trim(true)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/wrapper.tt"),
-        vec![("default", tt)],
-        callsign(),
-    );
+    test_expect(&tt_test("wrapper"), vec![("default", tt)], callsign());
 }

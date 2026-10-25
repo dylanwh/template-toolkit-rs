@@ -62,9 +62,5 @@ fn vmethods_text() {
     let tt = Template::new();
     tt.context().define_vmethod("scalar", "commify", commify);
     tt.context().define_vmethod("item", "commas", commify);
-    test_expect(
-        include_str!("corpus/vmethods_text.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("vmethods/text"), vec![("default", tt)], params);
 }

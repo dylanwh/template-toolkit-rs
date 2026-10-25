@@ -6,5 +6,5 @@ use template_toolkit::{constants::CHOMP_ALL, Template};
 fn capture() {
     let tt = Template::builder().post_chomp(CHOMP_ALL).build().unwrap();
     let v = vars(vec![("a", "alpha".into()), ("b", "bravo".into())]);
-    test_expect(include_str!("corpus/capture.tt"), vec![("default", tt)], v);
+    test_expect(&tt_test("capture"), vec![("default", tt)], v);
 }

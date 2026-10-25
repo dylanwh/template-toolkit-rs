@@ -96,9 +96,5 @@ fn date() {
         .post_chomp(template_toolkit::constants::CHOMP_ALL)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/date.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("date"), vec![("default", tt)], params);
 }

@@ -201,5 +201,5 @@ fn varsv1() {
                 .unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/varsv1.tt"), procs, params);
+    test_expect(&tt_test("varsv1"), procs, params);
 }

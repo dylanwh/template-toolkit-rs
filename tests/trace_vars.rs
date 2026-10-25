@@ -1,3 +1,5 @@
+mod common;
+use common::tt_test;
 use template_toolkit::{value::Value, Template};
 
 fn sub(v: &Value, k: &str) -> Value {
@@ -12,7 +14,7 @@ fn trace_vars() {
     let tt = Template::builder().trace_vars(true).build().unwrap();
     let doc = tt
         .context()
-        .compile_text(include_str!("corpus/trace_vars.tt"))
+        .compile_text(&tt_test("trace_vars"))
         .expect("compile");
     let vars = doc.variables_value();
     let used = |v: Value| v.is_defined();

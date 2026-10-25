@@ -56,9 +56,5 @@ fn list() {
         ),
     ]);
     let tt = Template::builder().build().unwrap();
-    test_expect(
-        include_str!("corpus/list.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("list"), vec![("default", tt)], params);
 }

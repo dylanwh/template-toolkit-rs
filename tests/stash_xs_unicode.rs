@@ -14,7 +14,7 @@ fn stash_xs_unicode() {
         ("str", "щука".into()),
     ]);
     test_expect(
-        include_str!("corpus/stash-xs-unicode.tt"),
+        &tt_test("stash-xs-unicode"),
         vec![("default", Template::new())],
         params,
     );

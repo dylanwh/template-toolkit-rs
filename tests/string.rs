@@ -11,7 +11,7 @@ use template_toolkit::Template;
 #[test]
 fn string() {
     test_expect(
-        include_str!("corpus/string.tt"),
+        &tt_test("string"),
         vec![("default", Template::new())],
         vars(vec![]),
     );

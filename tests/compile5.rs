@@ -25,7 +25,7 @@ fn setup() -> (PathBuf, PathBuf) {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("compile5_test");
     let _ = std::fs::remove_dir_all(&root);
     copy_dir(
-        Path::new("Template-Toolkit-3.009/t/test/src"),
+        Path::new("corpora/Template-Toolkit-3.009/t/test/src"),
         &root.join("src"),
     );
     let cdir = root.join("tmp").join("cache");
@@ -99,7 +99,7 @@ fn compile5() {
     hack(&blam, "blam", "wam-bam");
 
     test_expect(
-        include_str!("corpus/compile5.tt"),
+        &tt_test("compile5"),
         vec![("default", config(&root, &cdir_slash))],
         v,
     );

@@ -6,7 +6,7 @@ use template_toolkit::{provider::IncludePathItem, value::Value, Template};
 
 #[test]
 fn include() {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let src = |s: &str| IncludePathItem::Path(format!("{dir}/{s}"));
     let mut replace = vars(vec![
         ("a", "alpha".into()),
@@ -58,7 +58,7 @@ fn include() {
     replace.insert("metamod".into(), Value::Int(modtime as i64));
 
     test_expect(
-        include_str!("corpus/include.tt"),
+        &tt_test("include"),
         vec![("default", tproc), ("reset", tt_reset)],
         replace,
     );

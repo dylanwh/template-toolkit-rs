@@ -21,7 +21,7 @@ fn copy_dir(from: &Path, to: &Path) {
 // copy instead so the source tree stays clean.
 fn setup() -> PathBuf {
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join("compile3_src");
-    copy_dir(Path::new("Template-Toolkit-3.009/t/test/src"), &dir);
+    copy_dir(Path::new("corpora/Template-Toolkit-3.009/t/test/src"), &dir);
     dir
 }
 
@@ -114,6 +114,6 @@ fn compile3() {
         ),
     ]);
     let tt = cfg().build().unwrap();
-    test_expect(include_str!("corpus/compile3.tt"), vec![("default", tt)], v);
+    test_expect(&tt_test("compile3"), vec![("default", tt)], v);
     assert!(std::fs::metadata(&file).unwrap().modified().unwrap() > ttc_mtime);
 }

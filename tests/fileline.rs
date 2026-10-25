@@ -8,14 +8,14 @@ use template_toolkit::Template;
 // skipped.  Only the parse-error-with-line-number case is ported.
 #[test]
 fn fileline() {
-    let dir = "Template-Toolkit-3.009/t/test/lib";
+    let dir = "corpora/Template-Toolkit-3.009/t/test/lib";
     let tt = Template::builder()
         .include_path(vec![template_toolkit::provider::IncludePathItem::Path(
             dir.to_string(),
         )])
         .build()
         .unwrap();
-    let corpus = include_str!("corpus/fileline.tt");
+    let corpus = &tt_test("fileline");
     let i = corpus.rfind("-- test --").unwrap();
     test_expect(&corpus[i..], vec![("err", tt)], vars(vec![]));
 }

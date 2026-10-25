@@ -36,15 +36,11 @@ fn block() {
     );
     let tt = Template::builder()
         .include_path(vec![IncludePathItem::Path(
-            "Template-Toolkit-3.009/t/test/lib".into(),
+            "corpora/Template-Toolkit-3.009/t/test/lib".into(),
         )])
         .post_chomp(CHOMP_ALL)
         .blocks(blocks)
         .build()
         .unwrap();
-    test_expect(
-        include_str!("corpus/block.tt"),
-        vec![("default", tt)],
-        callsign(),
-    );
+    test_expect(&tt_test("block"), vec![("default", tt)], callsign());
 }

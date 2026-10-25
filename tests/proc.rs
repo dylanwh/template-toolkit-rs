@@ -54,9 +54,5 @@ fn proc() {
         ])),
     );
     let tt = Template::builder().plugins(plugins).build().unwrap();
-    test_expect(
-        include_str!("corpus/proc.tt"),
-        vec![("default", tt)],
-        callsign(),
-    );
+    test_expect(&tt_test("proc"), vec![("default", tt)], callsign());
 }

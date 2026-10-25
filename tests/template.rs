@@ -2,7 +2,7 @@ use template_toolkit::{provider::IncludePathItem, Template};
 
 #[test]
 fn template() {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let tt = Template::builder()
         .include_path(vec![
             IncludePathItem::Path(format!("{}/src", dir)),

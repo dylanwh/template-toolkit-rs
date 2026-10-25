@@ -38,5 +38,5 @@ fn stash() {
                 .unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/stash.tt"), ttlist, data);
+    test_expect(&tt_test("stash"), ttlist, data);
 }

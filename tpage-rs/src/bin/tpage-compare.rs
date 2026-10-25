@@ -15,7 +15,11 @@ use clap::Parser;
 use color_eyre::eyre::{bail, eyre, Result, WrapErr};
 use similar::TextDiff;
 
-const BUNDLED_TT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../Template-Toolkit-3.009");
+/// Perl TT as scripts/fetch-corpora.sh unpacks it.
+const BUNDLED_TT: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../corpora/Template-Toolkit-3.009"
+);
 
 #[derive(Parser, Debug)]
 #[command(
@@ -30,7 +34,7 @@ struct Args {
     #[arg(long, value_delimiter = ',', default_value = "tt,tt2")]
     ext: Vec<String>,
 
-    /// Perl tpage command line [default: bundled Template-Toolkit-3.009]
+    /// Perl tpage command line [default: corpora/Template-Toolkit-3.009]
     #[arg(long, value_name = "CMD")]
     tpage: Option<String>,
 

@@ -79,5 +79,5 @@ fn stash_xs() {
                 .unwrap(),
         ),
     ];
-    test_expect(include_str!("corpus/stash-xs.tt"), ttlist, data);
+    test_expect(&tt_test("stash-xs"), ttlist, data);
 }

@@ -14,7 +14,7 @@ fn debug_flags_api() {
 
 #[test]
 fn debug() {
-    let dir = "Template-Toolkit-3.009/t/test";
+    let dir = "corpora/Template-Toolkit-3.009/t/test";
     let ip = || {
         vec![
             IncludePathItem::Path(format!("{dir}/src")),
@@ -48,7 +48,7 @@ fn debug() {
         .build()
         .unwrap();
     test_expect(
-        include_str!("corpus/debug.tt"),
+        &tt_test("debug"),
         vec![("default", tt), ("debug", ttd), ("debug2", tt2)],
         vars,
     );

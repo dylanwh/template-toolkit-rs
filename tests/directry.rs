@@ -8,7 +8,7 @@ fn directry() {
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    let dir = "Template-Toolkit-3.009/t/test/dir";
+    let dir = "corpora/Template-Toolkit-3.009/t/test/dir";
     let dot = dir.split('/').map(|_| "..").collect::<Vec<_>>().join("/");
     let params = vars(vec![
         ("cwd", cwd.into()),
@@ -16,9 +16,5 @@ fn directry() {
         ("dot", dot.into()),
     ]);
     let tt = Template::builder().build().unwrap();
-    test_expect(
-        include_str!("corpus/directry.tt"),
-        vec![("default", tt)],
-        params,
-    );
+    test_expect(&tt_test("directry"), vec![("default", tt)], params);
 }
