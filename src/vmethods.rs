@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    rc::Rc,
     sync::LazyLock,
 };
 
@@ -16,14 +17,44 @@ use crate::{
 
 static WHITESPACE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
 
-pub type VMethodFn = fn(&Value, &[Value]) -> Result<Value, ControlFlow>;
+/// A virtual method (`[% list.mymethod(args) %]`): called with the value it
+/// was invoked on and its arguments, like a Perl `$Template::Stash::*_OPS`
+/// sub.  Any `Fn(&Value, &[Value]) -> Result<Value, ControlFlow>`, closures
+/// included, is a `VMethod`.
+pub trait VMethod {
+    fn call(&self, target: &Value, args: &[Value]) -> Result<Value, ControlFlow>;
+}
 
-#[derive(Debug, Clone)]
+impl<F: Fn(&Value, &[Value]) -> Result<Value, ControlFlow>> VMethod for F {
+    fn call(&self, target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+        self(target, args)
+    }
+}
+
+pub type VMethodFn = Rc<dyn VMethod>;
+
+#[derive(Clone)]
 pub struct VMethodRegistry {
     pub root_ops: HashMap<String, VMethodFn>,
     pub scalar_ops: HashMap<String, VMethodFn>,
     pub hash_ops: HashMap<String, VMethodFn>,
     pub list_ops: HashMap<String, VMethodFn>,
+}
+
+impl std::fmt::Debug for VMethodRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let names = |ops: &HashMap<String, VMethodFn>| {
+            let mut v: Vec<String> = ops.keys().cloned().collect();
+            v.sort();
+            v
+        };
+        f.debug_struct("VMethodRegistry")
+            .field("root_ops", &names(&self.root_ops))
+            .field("scalar_ops", &names(&self.scalar_ops))
+            .field("hash_ops", &names(&self.hash_ops))
+            .field("list_ops", &names(&self.list_ops))
+            .finish()
+    }
 }
 
 impl Default for VMethodRegistry {
@@ -42,7 +73,7 @@ pub fn reset_global_vmethods() {
     });
 }
 
-pub fn define_global_vmethod(vtype: &str, name: &str, f: VMethodFn) {
+pub fn define_global_vmethod(vtype: &str, name: &str, f: impl VMethod + 'static) {
     GLOBAL_VMETHODS.with(|g| {
         g.borrow_mut().define_vmethod(vtype, name, f);
     });
@@ -58,120 +89,152 @@ impl VMethodRegistry {
         };
 
         // ROOT_OPS
-        reg.root_ops.insert("inc".to_string(), vmethod_root_inc);
-        reg.root_ops.insert("dec".to_string(), vmethod_root_dec);
         reg.root_ops
-            .insert("import".to_string(), vmethod_hash_import);
+            .insert("inc".to_string(), Rc::new(vmethod_root_inc));
+        reg.root_ops
+            .insert("dec".to_string(), Rc::new(vmethod_root_dec));
+        reg.root_ops
+            .insert("import".to_string(), Rc::new(vmethod_hash_import));
 
         // SCALAR_OPS
         reg.scalar_ops
-            .insert("item".to_string(), vmethod_scalar_item);
+            .insert("item".to_string(), Rc::new(vmethod_scalar_item));
         reg.scalar_ops
-            .insert("list".to_string(), vmethod_scalar_list);
+            .insert("list".to_string(), Rc::new(vmethod_scalar_list));
         reg.scalar_ops
-            .insert("hash".to_string(), vmethod_scalar_hash);
+            .insert("hash".to_string(), Rc::new(vmethod_scalar_hash));
         reg.scalar_ops
-            .insert("length".to_string(), vmethod_scalar_length);
+            .insert("length".to_string(), Rc::new(vmethod_scalar_length));
         reg.scalar_ops
-            .insert("size".to_string(), vmethod_scalar_size);
+            .insert("size".to_string(), Rc::new(vmethod_scalar_size));
         reg.scalar_ops
-            .insert("empty".to_string(), vmethod_scalar_empty);
+            .insert("empty".to_string(), Rc::new(vmethod_scalar_empty));
         reg.scalar_ops
-            .insert("defined".to_string(), vmethod_scalar_defined);
+            .insert("defined".to_string(), Rc::new(vmethod_scalar_defined));
         reg.scalar_ops
-            .insert("upper".to_string(), vmethod_scalar_upper);
+            .insert("upper".to_string(), Rc::new(vmethod_scalar_upper));
         reg.scalar_ops
-            .insert("lower".to_string(), vmethod_scalar_lower);
+            .insert("lower".to_string(), Rc::new(vmethod_scalar_lower));
         reg.scalar_ops
-            .insert("ucfirst".to_string(), vmethod_scalar_ucfirst);
+            .insert("ucfirst".to_string(), Rc::new(vmethod_scalar_ucfirst));
         reg.scalar_ops
-            .insert("lcfirst".to_string(), vmethod_scalar_lcfirst);
+            .insert("lcfirst".to_string(), Rc::new(vmethod_scalar_lcfirst));
         reg.scalar_ops
-            .insert("trim".to_string(), vmethod_scalar_trim);
+            .insert("trim".to_string(), Rc::new(vmethod_scalar_trim));
         reg.scalar_ops
-            .insert("collapse".to_string(), vmethod_scalar_collapse);
+            .insert("collapse".to_string(), Rc::new(vmethod_scalar_collapse));
         reg.scalar_ops
-            .insert("squote".to_string(), vmethod_scalar_squote);
+            .insert("squote".to_string(), Rc::new(vmethod_scalar_squote));
         reg.scalar_ops
-            .insert("dquote".to_string(), vmethod_scalar_dquote);
+            .insert("dquote".to_string(), Rc::new(vmethod_scalar_dquote));
         reg.scalar_ops
-            .insert("html".to_string(), vmethod_scalar_html);
-        reg.scalar_ops.insert("xml".to_string(), vmethod_scalar_xml);
+            .insert("html".to_string(), Rc::new(vmethod_scalar_html));
         reg.scalar_ops
-            .insert("repeat".to_string(), vmethod_scalar_repeat);
+            .insert("xml".to_string(), Rc::new(vmethod_scalar_xml));
         reg.scalar_ops
-            .insert("search".to_string(), vmethod_scalar_search);
+            .insert("repeat".to_string(), Rc::new(vmethod_scalar_repeat));
         reg.scalar_ops
-            .insert("match".to_string(), vmethod_scalar_match);
+            .insert("search".to_string(), Rc::new(vmethod_scalar_search));
         reg.scalar_ops
-            .insert("replace".to_string(), vmethod_scalar_replace);
+            .insert("match".to_string(), Rc::new(vmethod_scalar_match));
         reg.scalar_ops
-            .insert("remove".to_string(), vmethod_scalar_remove);
+            .insert("replace".to_string(), Rc::new(vmethod_scalar_replace));
         reg.scalar_ops
-            .insert("split".to_string(), vmethod_scalar_split);
+            .insert("remove".to_string(), Rc::new(vmethod_scalar_remove));
         reg.scalar_ops
-            .insert("chunk".to_string(), vmethod_scalar_chunk);
+            .insert("split".to_string(), Rc::new(vmethod_scalar_split));
         reg.scalar_ops
-            .insert("substr".to_string(), vmethod_scalar_substr);
+            .insert("chunk".to_string(), Rc::new(vmethod_scalar_chunk));
+        reg.scalar_ops
+            .insert("substr".to_string(), Rc::new(vmethod_scalar_substr));
 
         // HASH_OPS
-        reg.hash_ops.insert("item".to_string(), vmethod_hash_item);
-        reg.hash_ops.insert("hash".to_string(), vmethod_hash_hash);
-        reg.hash_ops.insert("size".to_string(), vmethod_hash_size);
-        reg.hash_ops.insert("empty".to_string(), vmethod_hash_empty);
-        reg.hash_ops.insert("keys".to_string(), vmethod_hash_keys);
         reg.hash_ops
-            .insert("values".to_string(), vmethod_hash_values);
-        reg.hash_ops.insert("items".to_string(), vmethod_hash_items);
-        reg.hash_ops.insert("each".to_string(), vmethod_hash_items);
-        reg.hash_ops.insert("pairs".to_string(), vmethod_hash_pairs);
-        reg.hash_ops.insert("list".to_string(), vmethod_hash_list);
+            .insert("item".to_string(), Rc::new(vmethod_hash_item));
         reg.hash_ops
-            .insert("exists".to_string(), vmethod_hash_exists);
+            .insert("hash".to_string(), Rc::new(vmethod_hash_hash));
         reg.hash_ops
-            .insert("defined".to_string(), vmethod_hash_defined);
+            .insert("size".to_string(), Rc::new(vmethod_hash_size));
         reg.hash_ops
-            .insert("delete".to_string(), vmethod_hash_delete);
+            .insert("empty".to_string(), Rc::new(vmethod_hash_empty));
         reg.hash_ops
-            .insert("import".to_string(), vmethod_hash_import);
-        reg.hash_ops.insert("sort".to_string(), vmethod_hash_sort);
-        reg.hash_ops.insert("nsort".to_string(), vmethod_hash_nsort);
+            .insert("keys".to_string(), Rc::new(vmethod_hash_keys));
+        reg.hash_ops
+            .insert("values".to_string(), Rc::new(vmethod_hash_values));
+        reg.hash_ops
+            .insert("items".to_string(), Rc::new(vmethod_hash_items));
+        reg.hash_ops
+            .insert("each".to_string(), Rc::new(vmethod_hash_items));
+        reg.hash_ops
+            .insert("pairs".to_string(), Rc::new(vmethod_hash_pairs));
+        reg.hash_ops
+            .insert("list".to_string(), Rc::new(vmethod_hash_list));
+        reg.hash_ops
+            .insert("exists".to_string(), Rc::new(vmethod_hash_exists));
+        reg.hash_ops
+            .insert("defined".to_string(), Rc::new(vmethod_hash_defined));
+        reg.hash_ops
+            .insert("delete".to_string(), Rc::new(vmethod_hash_delete));
+        reg.hash_ops
+            .insert("import".to_string(), Rc::new(vmethod_hash_import));
+        reg.hash_ops
+            .insert("sort".to_string(), Rc::new(vmethod_hash_sort));
+        reg.hash_ops
+            .insert("nsort".to_string(), Rc::new(vmethod_hash_nsort));
 
         // LIST_OPS
-        reg.list_ops.insert("item".to_string(), vmethod_list_item);
-        reg.list_ops.insert("list".to_string(), vmethod_list_list);
-        reg.list_ops.insert("hash".to_string(), vmethod_list_hash);
-        reg.list_ops.insert("size".to_string(), vmethod_list_size);
-        reg.list_ops.insert("empty".to_string(), vmethod_list_empty);
-        reg.list_ops.insert("max".to_string(), vmethod_list_max);
         reg.list_ops
-            .insert("defined".to_string(), vmethod_list_defined);
-        reg.list_ops.insert("first".to_string(), vmethod_list_first);
-        reg.list_ops.insert("last".to_string(), vmethod_list_last);
+            .insert("item".to_string(), Rc::new(vmethod_list_item));
         reg.list_ops
-            .insert("reverse".to_string(), vmethod_list_reverse);
-        reg.list_ops.insert("join".to_string(), vmethod_list_join);
-        reg.list_ops.insert("grep".to_string(), vmethod_list_grep);
-        reg.list_ops.insert("sort".to_string(), vmethod_list_sort);
-        reg.list_ops.insert("nsort".to_string(), vmethod_list_nsort);
+            .insert("list".to_string(), Rc::new(vmethod_list_list));
         reg.list_ops
-            .insert("unique".to_string(), vmethod_list_unique);
+            .insert("hash".to_string(), Rc::new(vmethod_list_hash));
         reg.list_ops
-            .insert("import".to_string(), vmethod_list_import);
-        reg.list_ops.insert("merge".to_string(), vmethod_list_merge);
-        reg.list_ops.insert("slice".to_string(), vmethod_list_slice);
+            .insert("size".to_string(), Rc::new(vmethod_list_size));
         reg.list_ops
-            .insert("splice".to_string(), vmethod_list_splice);
-        reg.list_ops.insert("push".to_string(), vmethod_list_push);
-        reg.list_ops.insert("pop".to_string(), vmethod_list_pop);
+            .insert("empty".to_string(), Rc::new(vmethod_list_empty));
         reg.list_ops
-            .insert("unshift".to_string(), vmethod_list_unshift);
-        reg.list_ops.insert("shift".to_string(), vmethod_list_shift);
+            .insert("max".to_string(), Rc::new(vmethod_list_max));
+        reg.list_ops
+            .insert("defined".to_string(), Rc::new(vmethod_list_defined));
+        reg.list_ops
+            .insert("first".to_string(), Rc::new(vmethod_list_first));
+        reg.list_ops
+            .insert("last".to_string(), Rc::new(vmethod_list_last));
+        reg.list_ops
+            .insert("reverse".to_string(), Rc::new(vmethod_list_reverse));
+        reg.list_ops
+            .insert("join".to_string(), Rc::new(vmethod_list_join));
+        reg.list_ops
+            .insert("grep".to_string(), Rc::new(vmethod_list_grep));
+        reg.list_ops
+            .insert("sort".to_string(), Rc::new(vmethod_list_sort));
+        reg.list_ops
+            .insert("nsort".to_string(), Rc::new(vmethod_list_nsort));
+        reg.list_ops
+            .insert("unique".to_string(), Rc::new(vmethod_list_unique));
+        reg.list_ops
+            .insert("import".to_string(), Rc::new(vmethod_list_import));
+        reg.list_ops
+            .insert("merge".to_string(), Rc::new(vmethod_list_merge));
+        reg.list_ops
+            .insert("slice".to_string(), Rc::new(vmethod_list_slice));
+        reg.list_ops
+            .insert("splice".to_string(), Rc::new(vmethod_list_splice));
+        reg.list_ops
+            .insert("push".to_string(), Rc::new(vmethod_list_push));
+        reg.list_ops
+            .insert("pop".to_string(), Rc::new(vmethod_list_pop));
+        reg.list_ops
+            .insert("unshift".to_string(), Rc::new(vmethod_list_unshift));
+        reg.list_ops
+            .insert("shift".to_string(), Rc::new(vmethod_list_shift));
 
         reg
     }
 
-    pub fn define_vmethod(&mut self, vtype: &str, name: &str, f: VMethodFn) {
+    pub fn define_vmethod(&mut self, vtype: &str, name: &str, f: impl VMethod + 'static) {
+        let f: VMethodFn = Rc::new(f);
         let lower = vtype.to_ascii_lowercase();
         if lower.starts_with("scalar") || lower.starts_with("item") || lower.starts_with("text") {
             self.scalar_ops.insert(name.to_string(), f);
@@ -184,7 +247,7 @@ impl VMethodRegistry {
         }
     }
 
-    pub fn define(&mut self, vtype: &str, name: &str, f: VMethodFn) {
+    pub fn define(&mut self, vtype: &str, name: &str, f: impl VMethod + 'static) {
         self.define_vmethod(vtype, name, f);
     }
 }

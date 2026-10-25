@@ -1539,7 +1539,7 @@ impl StringPlugin {
         let filters = self.filters.borrow().clone();
         for (fname, fargs) in filters {
             let filter_fn = self.context.get_filter(&fname, &fargs)?;
-            t = filter_fn(&t)?;
+            t = filter_fn.filter(&t)?;
         }
         Ok(t)
     }
@@ -1677,7 +1677,7 @@ impl TemplateObject for StringPlugin {
                 let fname = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
                 let fargs = if args.len() > 1 { &args[1..] } else { &[] };
                 match self.context.get_filter(&fname, fargs) {
-                    Ok(ffn) => match ffn(&self.text.borrow()) {
+                    Ok(ffn) => match ffn.filter(&self.text.borrow()) {
                         Ok(s) => MethodResult::Ok(Value::Str(s)),
                         Err(cf) => MethodResult::Err(cf),
                     },
@@ -2281,7 +2281,7 @@ fn load_wrap_plugin(context: &Context) -> Value {
     // Also register 'wrap' dynamic filter in context
     context.define_filter(
         "wrap",
-        FilterDef::Dynamic(Rc::new(|args| {
+        FilterDef::Dynamic(Rc::new(|args: &[Value]| {
             let width = args
                 .first()
                 .filter(|v| v.is_defined())
@@ -2298,7 +2298,7 @@ fn load_wrap_plugin(context: &Context) -> Value {
                 .map(|v| v.to_tt_string())
                 .unwrap_or_default();
             let f: FilterFn =
-                Rc::new(move |text| Ok(tt_wrap_text(text, width, &init_tab, &subseq_tab)));
+                Rc::new(move |text: &str| Ok(tt_wrap_text(text, width, &init_tab, &subseq_tab)));
             Ok(crate::filters::FilterFactoryOutcome::Ok(f))
         })),
     );
@@ -2332,7 +2332,17 @@ fn load_wrap_plugin(context: &Context) -> Value {
     })
 }
 
-/// Custom plugin factory trait for user-defined or test-defined plugins.
+/// A plugin loaded by `[% USE name(args) %]`.  As in Perl (`load($class,
+/// $context)` then `new($context, @args)`) it gets the context; closures
+/// `Fn(&[Value]) -> Result<Value, TemplateException>` that don't need it
+/// implement this directly, and [`with_context`](crate::context::with_context)
+/// adapts closures that do.
 pub trait PluginFactory {
     fn load(&self, context: &Context, args: &[Value]) -> Result<Value, TemplateException>;
+}
+
+impl<F: Fn(&[Value]) -> Result<Value, TemplateException>> PluginFactory for F {
+    fn load(&self, _context: &Context, args: &[Value]) -> Result<Value, TemplateException> {
+        self(args)
+    }
 }

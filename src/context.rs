@@ -23,7 +23,7 @@ use crate::{
     stash::Stash,
     value::{format_perl_float, CallContext, Callable, Value},
     view::View,
-    vmethods::VMethodFn,
+    vmethods::VMethod,
 };
 
 pub const DEFAULT_DEBUG_FORMAT: &str = "\n## $file line $line : [% $text %] ##\n";
@@ -88,6 +88,56 @@ impl From<Rc<Document>> for BlockDef {
 impl From<Document> for BlockDef {
     fn from(d: Document) -> Self {
         BlockDef::Document(Rc::new(d))
+    }
+}
+
+/// Adapts a closure that takes the [`Context`] as its first argument into a
+/// [`FilterFactory`](crate::filters::FilterFactory) or
+/// [`PluginFactory`]; plain closures implement those traits only in their
+/// context-free form.
+///
+/// ```
+/// use template_toolkit::context::{with_context, Context};
+/// use template_toolkit::filters::{FilterFactoryOutcome, FilterFn};
+/// use template_toolkit::value::Value;
+/// use template_toolkit::Template;
+/// use std::rc::Rc;
+///
+/// let tt = Template::new();
+/// tt.define_variable("sep", " | ");
+/// // `| join_with` reads the `sep` template variable through the context.
+/// tt.define_filter_factory("join_with", with_context(|ctx: &Context, _args: &[Value]| {
+///     let sep = ctx.stash().get(&Value::from("sep"), None)?.to_tt_string();
+///     let f: FilterFn = Rc::new(move |t: &str| Ok(t.split_whitespace().collect::<Vec<_>>().join(&sep)));
+///     Ok(FilterFactoryOutcome::Ok(f))
+/// }));
+/// assert_eq!(tt.process_text("[% 'a b c' | join_with %]", None).unwrap(), "a | b | c");
+/// ```
+pub struct WithContext<F>(pub F);
+
+pub fn with_context<F>(f: F) -> WithContext<F> {
+    WithContext(f)
+}
+
+impl<F> crate::filters::FilterFactory for WithContext<F>
+where
+    F: Fn(&Context, &[Value]) -> Result<crate::filters::FilterFactoryOutcome, ControlFlow>,
+{
+    fn create(
+        &self,
+        context: &Context,
+        args: &[Value],
+    ) -> Result<crate::filters::FilterFactoryOutcome, ControlFlow> {
+        (self.0)(context, args)
+    }
+}
+
+impl<F> PluginFactory for WithContext<F>
+where
+    F: Fn(&Context, &[Value]) -> Result<Value, TemplateException>,
+{
+    fn load(&self, context: &Context, args: &[Value]) -> Result<Value, TemplateException> {
+        (self.0)(context, args)
     }
 }
 
@@ -506,7 +556,7 @@ impl Context {
         let mut found_filter: Option<FilterFn> = None;
 
         for prov in providers {
-            let res = prov.borrow().fetch(name, arg_slice);
+            let res = prov.borrow().fetch(name, arg_slice, self);
             match res {
                 Ok(Some(f)) => {
                     found_filter = Some(f);
@@ -561,7 +611,7 @@ impl Context {
         Ok(())
     }
 
-    pub fn define_vmethod(&self, vtype: &str, name: &str, f: VMethodFn) {
+    pub fn define_vmethod(&self, vtype: &str, name: &str, f: impl VMethod + 'static) {
         let inner = self.inner.borrow();
         if let Some(vm) = &inner.stash.vmethods {
             vm.borrow_mut().define_vmethod(vtype, name, f);
@@ -1265,7 +1315,7 @@ impl Context {
 
                 let mut sub_output = String::new();
                 self.eval_block(block, &mut sub_output)?;
-                let filtered = filter_fn(&sub_output)?;
+                let filtered = filter_fn.filter(&sub_output)?;
                 output.push_str(&filtered);
                 Ok(())
             }

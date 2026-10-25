@@ -100,14 +100,20 @@ fn context() {
 
     // filter()
     let f = context.filter("html", None, None).expect("html filter");
-    assert_eq!(f("<input/>").unwrap(), "&lt;input/&gt;");
+    assert_eq!(f.filter("<input/>").unwrap(), "&lt;input/&gt;");
     let args = [Value::from("foo"), Value::from("bar")];
     let f = context
         .filter("replace", Some(&args), Some("repsave"))
         .expect("replace filter");
-    assert_eq!(f("this is foo, so it is").unwrap(), "this is bar, so it is");
+    assert_eq!(
+        f.filter("this is foo, so it is").unwrap(),
+        "this is bar, so it is"
+    );
     let f = context.filter("repsave", None, None).expect("saved filter");
-    assert_eq!(f("this is foo, so it is").unwrap(), "this is bar, so it is");
+    assert_eq!(
+        f.filter("this is foo, so it is").unwrap(),
+        "this is bar, so it is"
+    );
 
     // include() / process()
     let context = tt.context().clone();

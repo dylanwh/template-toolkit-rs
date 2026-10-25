@@ -119,7 +119,9 @@ fn filter() {
             Ok(t)
         })))
     }));
-    let badfact = FilterDef::Dynamic(Rc::new(|_| Ok(FilterFactoryOutcome::InvalidReturn)));
+    let badfact = FilterDef::Dynamic(Rc::new(|_: &[Value]| {
+        Ok(FilterFactoryOutcome::InvalidReturn)
+    }));
     let barfilt = FilterDef::Dynamic(Rc::new(|args: &[Value]| {
         let foad = args.first().map(|v| v.to_number() as i64).unwrap_or(0);
         match foad {

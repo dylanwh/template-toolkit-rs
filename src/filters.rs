@@ -12,6 +12,7 @@ use std::{
 };
 
 use crate::{
+    context::Context,
     error::{ControlFlow, TemplateException},
     regex_cache,
     value::Value,
@@ -27,10 +28,49 @@ pub fn use_rfc3986() {
     URI_RFC2732.store(false, Ordering::SeqCst);
 }
 
-pub type FilterFn = Rc<dyn Fn(&str) -> Result<String, ControlFlow>>;
+/// A filter: transforms the text of a `FILTER` block or `| name` pipe.
+///
+/// Like a static filter in Perl (`FILTERS => { name => \&sub }`), it sees
+/// only the text.  Any closure `Fn(&str) -> Result<String, ControlFlow>`
+/// is a `Filter`; implement the trait on a type for anything more.
+pub trait Filter {
+    fn filter(&self, text: &str) -> Result<String, ControlFlow>;
+}
 
-/// Dynamic filter factory signature: receives `args: &[Value]` and returns a `FilterFn` or error.
-pub type DynamicFilterFactory = Rc<dyn Fn(&[Value]) -> Result<FilterFactoryOutcome, ControlFlow>>;
+impl<F: Fn(&str) -> Result<String, ControlFlow>> Filter for F {
+    fn filter(&self, text: &str) -> Result<String, ControlFlow> {
+        self(text)
+    }
+}
+
+pub type FilterFn = Rc<dyn Filter>;
+
+/// A dynamic filter (`FILTERS => { name => [ \&factory, 1 ] }` in Perl):
+/// called with the context and the filter's arguments (`| name(args)`),
+/// it returns the filter to apply.
+///
+/// Closures `Fn(&[Value]) -> Result<FilterFactoryOutcome, ControlFlow>`
+/// that don't need the context implement this directly; wrap a closure
+/// taking `(&Context, &[Value])` in [`with_context`](crate::context::with_context).
+pub trait FilterFactory {
+    fn create(
+        &self,
+        context: &Context,
+        args: &[Value],
+    ) -> Result<FilterFactoryOutcome, ControlFlow>;
+}
+
+impl<F: Fn(&[Value]) -> Result<FilterFactoryOutcome, ControlFlow>> FilterFactory for F {
+    fn create(
+        &self,
+        _context: &Context,
+        args: &[Value],
+    ) -> Result<FilterFactoryOutcome, ControlFlow> {
+        self(args)
+    }
+}
+
+pub type DynamicFilterFactory = Rc<dyn FilterFactory>;
 
 pub enum FilterFactoryOutcome {
     Ok(FilterFn),
@@ -73,7 +113,12 @@ impl Filters {
         self.local_filters.insert(name.into(), def);
     }
 
-    pub fn fetch(&self, name: &str, args: &[Value]) -> Result<Option<FilterFn>, TemplateException> {
+    pub fn fetch(
+        &self,
+        name: &str,
+        args: &[Value],
+        context: &Context,
+    ) -> Result<Option<FilterFn>, TemplateException> {
         let def_opt = self
             .local_filters
             .get(name)
@@ -90,7 +135,7 @@ impl Filters {
                 "filter",
                 format!("invalid FILTER entry for '{}' (not a CODE ref)", name),
             )),
-            FilterDef::Dynamic(factory) => match factory(args) {
+            FilterDef::Dynamic(factory) => match factory.create(context, args) {
                 Ok(FilterFactoryOutcome::Ok(f)) => Ok(f),
                 Ok(FilterFactoryOutcome::InvalidReturn) => Err(TemplateException::new(
                     "filter",
@@ -121,25 +166,41 @@ impl Filters {
 
     fn builtin_filter(&self, name: &str) -> Option<FilterDef> {
         match name {
-            "html" => Some(FilterDef::Static(Rc::new(|text| Ok(html_filter(text))))),
-            "xml" => Some(FilterDef::Static(Rc::new(|text| Ok(xml_filter(text))))),
-            "html_para" => Some(FilterDef::Static(Rc::new(|text| Ok(html_paragraph(text))))),
-            "html_break" | "html_para_break" => {
-                Some(FilterDef::Static(Rc::new(|text| Ok(html_para_break(text)))))
-            }
-            "html_line_break" => Some(FilterDef::Static(Rc::new(|text| Ok(html_line_break(text))))),
-            "uri" => Some(FilterDef::Static(Rc::new(|text| Ok(uri_filter(text))))),
-            "url" => Some(FilterDef::Static(Rc::new(|text| Ok(url_filter(text))))),
-            "upper" => Some(FilterDef::Static(Rc::new(|text| Ok(text.to_uppercase())))),
-            "lower" => Some(FilterDef::Static(Rc::new(|text| Ok(text.to_lowercase())))),
-            "ucfirst" => Some(FilterDef::Static(Rc::new(|text| {
+            "html" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(html_filter(text))
+            }))),
+            "xml" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(xml_filter(text))
+            }))),
+            "html_para" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(html_paragraph(text))
+            }))),
+            "html_break" | "html_para_break" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(html_para_break(text))
+            }))),
+            "html_line_break" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(html_line_break(text))
+            }))),
+            "uri" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(uri_filter(text))
+            }))),
+            "url" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(url_filter(text))
+            }))),
+            "upper" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(text.to_uppercase())
+            }))),
+            "lower" => Some(FilterDef::Static(Rc::new(|text: &str| {
+                Ok(text.to_lowercase())
+            }))),
+            "ucfirst" => Some(FilterDef::Static(Rc::new(|text: &str| {
                 let mut chars = text.chars();
                 match chars.next() {
                     None => Ok(String::new()),
                     Some(first) => Ok(first.to_uppercase().collect::<String>() + chars.as_str()),
                 }
             }))),
-            "lcfirst" => Some(FilterDef::Static(Rc::new(|text| {
+            "lcfirst" => Some(FilterDef::Static(Rc::new(|text: &str| {
                 let mut chars = text.chars();
                 match chars.next() {
                     None => Ok(String::new()),
@@ -148,7 +209,7 @@ impl Filters {
             }))),
             "stderr" => {
                 let sink = self.stderr_sink.clone();
-                Some(FilterDef::Static(Rc::new(move |text| {
+                Some(FilterDef::Static(Rc::new(move |text: &str| {
                     if let Some(ref s) = sink {
                         s.borrow_mut().push_str(text);
                     } else {
@@ -157,11 +218,11 @@ impl Filters {
                     Ok(String::new())
                 })))
             }
-            "trim" => Some(FilterDef::Static(Rc::new(|text| {
+            "trim" => Some(FilterDef::Static(Rc::new(|text: &str| {
                 Ok(text.trim().to_string())
             }))),
-            "null" => Some(FilterDef::Static(Rc::new(|_| Ok(String::new())))),
-            "collapse" => Some(FilterDef::Static(Rc::new(|text| {
+            "null" => Some(FilterDef::Static(Rc::new(|_: &str| Ok(String::new())))),
+            "collapse" => Some(FilterDef::Static(Rc::new(|text: &str| {
                 let trimmed = text.trim();
                 let mut out = String::with_capacity(trimmed.len());
                 let mut in_ws = false;
@@ -178,12 +239,12 @@ impl Filters {
                 }
                 Ok(out)
             }))),
-            "html_entity" => Some(FilterDef::Dynamic(Rc::new(|_args| {
-                Ok(FilterFactoryOutcome::Ok(Rc::new(|text| {
+            "html_entity" => Some(FilterDef::Dynamic(Rc::new(|_args: &[Value]| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(|text: &str| {
                     Ok(html_entity_filter(text))
                 })))
             }))),
-            "indent" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "indent" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let pad = match args.first() {
                     None | Some(Value::Undefined) => "    ".to_string(),
                     Some(v) => {
@@ -196,7 +257,7 @@ impl Filters {
                         }
                     }
                 };
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     if text.is_empty() {
                         return Ok(String::new());
                     }
@@ -219,13 +280,13 @@ impl Filters {
                     Ok(out)
                 })))
             }))),
-            "format" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "format" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let fmt_str = args
                     .first()
                     .filter(|v| v.is_defined())
                     .map(|v| v.to_tt_string())
                     .unwrap_or_else(|| "%s".to_string());
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     let lines = perl_split_lines(text);
                     let formatted: Vec<String> = lines
                         .into_iter()
@@ -234,17 +295,17 @@ impl Filters {
                     Ok(formatted.join("\n"))
                 })))
             }))),
-            "repeat" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "repeat" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let iter = args
                     .first()
                     .filter(|v| v.is_defined() && !v.to_tt_string().is_empty())
                     .map(|v| v.to_int().max(0) as usize)
                     .unwrap_or(1);
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     Ok(text.repeat(iter))
                 })))
             }))),
-            "replace" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "replace" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let search = args
                     .first()
                     .filter(|v| v.is_defined())
@@ -255,7 +316,7 @@ impl Filters {
                     .filter(|v| v.is_defined())
                     .map(|v| v.to_tt_string())
                     .unwrap_or_default();
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     if let Some(re) = regex_cache::regex(&search) {
                         Ok(re.replace_all(text, replace.as_str()).into_owned())
                     } else if let Some(fre) = regex_cache::fancy(&search) {
@@ -265,13 +326,13 @@ impl Filters {
                     }
                 })))
             }))),
-            "remove" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "remove" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let search = args
                     .first()
                     .filter(|v| v.is_defined())
                     .map(|v| v.to_tt_string())
                     .unwrap_or_default();
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     if let Some(re) = regex_cache::regex(&search) {
                         Ok(re.replace_all(text, "").into_owned())
                     } else if let Some(fre) = regex_cache::fancy(&search) {
@@ -281,7 +342,7 @@ impl Filters {
                     }
                 })))
             }))),
-            "truncate" => Some(FilterDef::Dynamic(Rc::new(|args| {
+            "truncate" => Some(FilterDef::Dynamic(Rc::new(|args: &[Value]| {
                 let len = args
                     .first()
                     .filter(|v| v.is_defined())
@@ -299,7 +360,7 @@ impl Filters {
                 } else {
                     addon_chars.len()
                 };
-                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                     let chars: Vec<char> = text.chars().collect();
                     if chars.len() <= len {
                         Ok(text.to_string())
@@ -309,7 +370,7 @@ impl Filters {
                     }
                 })))
             }))),
-            "perl" | "evalperl" => Some(FilterDef::Dynamic(Rc::new(|_args| {
+            "perl" | "evalperl" => Some(FilterDef::Dynamic(Rc::new(|_args: &[Value]| {
                 Ok(FilterFactoryOutcome::Error(TemplateException::new(
                     "perl",
                     "EVAL_PERL is not set",
@@ -317,7 +378,7 @@ impl Filters {
             }))),
             "redirect" | "file" => {
                 let outpath = self.output_path.clone();
-                Some(FilterDef::Dynamic(Rc::new(move |args| {
+                Some(FilterDef::Dynamic(Rc::new(move |args: &[Value]| {
                     let Some(ref base_dir) = outpath else {
                         return Ok(FilterFactoryOutcome::Error(TemplateException::new(
                             "redirect",
@@ -332,7 +393,7 @@ impl Filters {
                         )));
                     }
                     let full_path = base_dir.join(&file);
-                    Ok(FilterFactoryOutcome::Ok(Rc::new(move |text| {
+                    Ok(FilterFactoryOutcome::Ok(Rc::new(move |text: &str| {
                         if let Some(parent) = full_path.parent() {
                             if let Err(e) = fs::create_dir_all(parent) {
                                 return Err(ControlFlow::Exception(TemplateException::new(
@@ -351,8 +412,8 @@ impl Filters {
                     })))
                 })))
             }
-            "stdout" => Some(FilterDef::Dynamic(Rc::new(|_args| {
-                Ok(FilterFactoryOutcome::Ok(Rc::new(|text| {
+            "stdout" => Some(FilterDef::Dynamic(Rc::new(|_args: &[Value]| {
+                Ok(FilterFactoryOutcome::Ok(Rc::new(|text: &str| {
                     let _ = std::io::stdout().write_all(text.as_bytes());
                     Ok(String::new())
                 })))

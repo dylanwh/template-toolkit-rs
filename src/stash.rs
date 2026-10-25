@@ -555,10 +555,10 @@ impl Stash {
         }
 
         // 3. Check ROOT_OPS (inc, dec, import)
-        let root_op = self.with_vmethods(|vm| vm.root_ops.get(&item_str).copied());
+        let root_op = self.with_vmethods(|vm| vm.root_ops.get(&item_str).cloned());
         if let Some(op) = root_op {
             let root_val = Value::Hash(Rc::clone(&self.root));
-            let res = op(&root_val, args)?;
+            let res = op.call(&root_val, args)?;
             return self.finalize_result(res, &item_str, return_ref, scalar_context);
         }
 
@@ -620,8 +620,8 @@ impl Stash {
                     return Ok(new_hash);
                 }
 
-                if let Some(op) = self.with_vmethods(|vm| vm.hash_ops.get(&item_str).copied()) {
-                    let res = op(root, args)?;
+                if let Some(op) = self.with_vmethods(|vm| vm.hash_ops.get(&item_str).cloned()) {
+                    let res = op.call(root, args)?;
                     return self.finalize_result(res, &item_str, return_ref, scalar_context);
                 }
 
@@ -637,7 +637,7 @@ impl Stash {
 
                 if self.context_mode {
                     if let Some(sop) =
-                        self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).copied())
+                        self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).cloned())
                     {
                         let keys: Vec<String> = hash_rc.borrow().keys().cloned().collect();
                         for k in keys {
@@ -646,7 +646,7 @@ impl Stash {
                                 .get(&k)
                                 .cloned()
                                 .unwrap_or(Value::Undefined);
-                            let updated = sop(&cur, args)?;
+                            let updated = sop.call(&cur, args)?;
                             hash_rc.borrow_mut().insert(k, updated);
                         }
                         return Ok(Value::Undefined);
@@ -657,8 +657,8 @@ impl Stash {
             Value::List(list_rc) => {
                 // LIST_OPS apply to lvalue lookups too (e.g. `list.last.key = value`)
                 if !(self.context_mode && item_str == "array") {
-                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied()) {
-                        let res = op(root, args)?;
+                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).cloned()) {
+                        let res = op.call(root, args)?;
                         return self.finalize_result(res, &item_str, return_ref, scalar_context);
                     }
                 }
@@ -673,12 +673,12 @@ impl Stash {
                     }
                     if self.context_mode {
                         if let Some(sop) =
-                            self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).copied())
+                            self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).cloned())
                         {
                             let len = list_rc.borrow().len();
                             for idx in 0..len {
                                 let cur = list_rc.borrow()[idx].clone();
-                                let updated = sop(&cur, args)?;
+                                let updated = sop.call(&cur, args)?;
                                 list_rc.borrow_mut()[idx] = updated;
                             }
                             return Ok(Value::Undefined);
@@ -753,14 +753,14 @@ impl Stash {
                                 }
                             }
                             if let Some(op) =
-                                self.with_vmethods(|vm| vm.hash_ops.get(&item_str).copied())
+                                self.with_vmethods(|vm| vm.hash_ops.get(&item_str).cloned())
                             {
                                 let target = if item_str == "scalar" || item_str == "assert" {
                                     root.clone()
                                 } else {
                                     Value::Hash(hash_rc)
                                 };
-                                let res = op(&target, args)?;
+                                let res = op.call(&target, args)?;
                                 return self.finalize_result(
                                     res,
                                     &item_str,
@@ -769,10 +769,10 @@ impl Stash {
                                 );
                             }
                             if let Some(op) =
-                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied())
+                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).cloned())
                             {
                                 let promoted = Value::from_list(vec![root.clone()]);
-                                let res = op(&promoted, args)?;
+                                let res = op.call(&promoted, args)?;
                                 return self.finalize_result(
                                     res,
                                     &item_str,
@@ -787,9 +787,9 @@ impl Stash {
                                 Value::List(Rc::clone(&list_rc))
                             };
                             if let Some(op) =
-                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied())
+                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).cloned())
                             {
-                                let res = op(&l_val, args)?;
+                                let res = op.call(&l_val, args)?;
                                 return self.finalize_result(
                                     res,
                                     &item_str,
@@ -814,9 +814,9 @@ impl Stash {
                             }
                         } else {
                             if let Some(op) =
-                                self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).copied())
+                                self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).cloned())
                             {
-                                let res = op(root, args)?;
+                                let res = op.call(root, args)?;
                                 return self.finalize_result(
                                     res,
                                     &item_str,
@@ -825,10 +825,10 @@ impl Stash {
                                 );
                             }
                             if let Some(op) =
-                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied())
+                                self.with_vmethods(|vm| vm.list_ops.get(&item_str).cloned())
                             {
                                 let promoted = Value::from_list(vec![root.clone()]);
-                                let res = op(&promoted, args)?;
+                                let res = op.call(&promoted, args)?;
                                 return self.finalize_result(
                                     res,
                                     &item_str,
@@ -872,15 +872,15 @@ impl Stash {
                         }
                     }
 
-                    if let Some(op) = self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).copied())
+                    if let Some(op) = self.with_vmethods(|vm| vm.scalar_ops.get(&item_str).cloned())
                     {
-                        let res = op(root, args)?;
+                        let res = op.call(root, args)?;
                         return self.finalize_result(res, &item_str, return_ref, scalar_context);
                     }
 
-                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied()) {
+                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).cloned()) {
                         let promoted = Value::from_list(vec![root.clone()]);
-                        let res = op(&promoted, args)?;
+                        let res = op.call(&promoted, args)?;
                         return self.finalize_result(res, &item_str, return_ref, scalar_context);
                     }
                 }

@@ -23,13 +23,14 @@ use crate::{
     constants::{debug_flags, DebugFlagsInput, CHOMP_NONE},
     context::{BlockDef, Context},
     error::TemplateException,
-    filters::{FilterDef, Filters},
+    filters::{Filter, FilterDef, FilterFactory, Filters},
     parser::{ConstantsNamespace, Parser},
     plugins::PluginFactory,
     provider::{IncludePathItem, Provider},
     service::{ErrorSpec, Service},
     stash::Stash,
-    value::Value,
+    value::{Callable, Value},
+    vmethods::VMethod,
 };
 
 #[derive(Clone, Debug)]
@@ -259,6 +260,65 @@ impl Template {
 
     pub fn context(&self) -> &Context {
         self.service.context()
+    }
+
+    /// Register a static filter: `[% text | name %]`.  Any
+    /// `Fn(&str) -> Result<String, ControlFlow>` works.
+    pub fn define_filter(&self, name: impl Into<String>, filter: impl Filter + 'static) -> &Self {
+        self.context()
+            .define_filter(name, FilterDef::Static(Rc::new(filter)));
+        self
+    }
+
+    /// Register a dynamic filter, created per use with its arguments:
+    /// `[% text | name(args) %]`.  Wrap a closure in
+    /// [`context::with_context`] if it needs the context.
+    pub fn define_filter_factory(
+        &self,
+        name: impl Into<String>,
+        factory: impl FilterFactory + 'static,
+    ) -> &Self {
+        self.context()
+            .define_filter(name, FilterDef::Dynamic(Rc::new(factory)));
+        self
+    }
+
+    /// Register a plugin for `[% USE name(args) %]`.
+    pub fn define_plugin(
+        &self,
+        name: impl Into<String>,
+        plugin: impl PluginFactory + 'static,
+    ) -> &Self {
+        self.context().register_plugin(name, Rc::new(plugin));
+        self
+    }
+
+    /// Register a virtual method on `"scalar"`, `"list"`, `"hash"` or
+    /// `"root"` values: `[% value.name(args) %]`.
+    pub fn define_vmethod(
+        &self,
+        vtype: &str,
+        name: &str,
+        vmethod: impl VMethod + 'static,
+    ) -> &Self {
+        self.context().define_vmethod(vtype, name, vmethod);
+        self
+    }
+
+    /// Define a global template variable, visible to every `process` call.
+    pub fn define_variable(&self, name: impl Into<String>, value: impl Into<Value>) -> &Self {
+        self.context().stash().set_raw(name, value.into());
+        self
+    }
+
+    /// Define a global function: `[% name(args) %]`.  Any
+    /// `Fn(&[Value], CallContext) -> Result<Value, ControlFlow>` works.
+    pub fn define_function(
+        &self,
+        name: impl Into<String>,
+        function: impl Callable + 'static,
+    ) -> &Self {
+        self.define_variable(name, Value::Function(Rc::new(function)))
     }
 
     pub fn error(&self) -> Option<TemplateException> {

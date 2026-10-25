@@ -56,7 +56,7 @@ struct SimpleFactory;
 
 impl PluginFactory for SimpleFactory {
     fn load(&self, c: &Context, _args: &[Value]) -> Result<Value, TemplateException> {
-        let f: template_toolkit::filters::DynamicFilterFactory = Rc::new(|_args| {
+        let f: template_toolkit::filters::DynamicFilterFactory = Rc::new(|_args: &[Value]| {
             let ff: template_toolkit::filters::FilterFn =
                 Rc::new(|t: &str| Ok(format!("**{}**", t)));
             Ok(FilterFactoryOutcome::Ok(ff))
