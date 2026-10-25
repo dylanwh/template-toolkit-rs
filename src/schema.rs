@@ -210,7 +210,14 @@ struct Scanner<'l, 'a> {
     frames: Vec<HashMap<String, Binding>>,
     /// How many conditionals enclose the current statement.
     cond: usize,
+    /// The BLOCKs of the templates being scanned, innermost last (TT's
+    /// BLKSTACK).
     blocks: Vec<BlockMap>,
+    /// The context's BLOCKS: those of every template processed without
+    /// localising, the main one included.  TT keeps them for the rest of
+    /// the request, so a BLOCK library PROCESSed (even from inside an
+    /// INCLUDE) serves the templates after it.
+    context_blocks: HashMap<String, Rc<Block>>,
     loader: Option<&'l mut Loader<'a>>,
     docs: HashMap<String, Option<(Rc<Document>, BlockMap)>>,
     /// Templates, BLOCKs and MACROs being scanned, to stop recursion.
@@ -269,6 +276,7 @@ impl<'l, 'a> Scanner<'l, 'a> {
             frames: vec![HashMap::new()],
             cond: 0,
             blocks: Vec::new(),
+            context_blocks: HashMap::new(),
             loader,
             docs: HashMap::new(),
             stack: Vec::new(),
@@ -288,6 +296,8 @@ impl<'l, 'a> Scanner<'l, 'a> {
         let blocks = block_map(doc);
         self.file = name.to_string();
         self.blocks.push(blocks.clone());
+        self.context_blocks
+            .extend(blocks.iter().map(|(k, b)| (k.clone(), b.clone())));
         self.stack.push(format!("file:{name}"));
         self.block(&doc.block);
 
@@ -814,21 +824,31 @@ impl<'l, 'a> Scanner<'l, 'a> {
             self.bind_node("content", c);
         }
         for name in names {
-            self.process_template(&name);
+            self.process_template(&name, localise);
         }
         if localise {
             self.frames.pop();
         }
     }
 
-    fn process_template(&mut self, name: &str) {
-        if let Some(b) = self.blocks.iter().rev().find_map(|m| m.get(name).cloned()) {
+    /// A template or BLOCK by name, looked up as TT's Context::template
+    /// does: the context's BLOCKS, then those of the templates being
+    /// processed, then the providers.
+    fn process_template(&mut self, name: &str, localise: bool) {
+        let block = self.context_blocks.get(name).cloned();
+        if let Some(b) =
+            block.or_else(|| self.blocks.iter().rev().find_map(|m| m.get(name).cloned()))
+        {
             self.run(Self::block_key(&b), name, |s| s.block(&b));
             return;
         }
         let Some((doc, blocks)) = self.load(name) else {
             return;
         };
+        if !localise {
+            self.context_blocks
+                .extend(blocks.iter().map(|(k, b)| (k.clone(), b.clone())));
+        }
         self.run(format!("file:{name}"), name, |s| {
             let (file, line) = (
                 std::mem::replace(&mut s.file, name.to_string()),

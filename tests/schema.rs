@@ -255,3 +255,52 @@ fn item_with_a_literal_key_is_that_key() {
     );
     assert_eq!(schema("[% user.item('name') %]"), schema("[% user.name %]"));
 }
+
+#[test]
+fn blocks_from_processed_templates_stay_defined() {
+    // TT merges the BLOCKs of a template processed without localising
+    // into the context, for the rest of the request; INCLUDE and WRAPPER
+    // don't.  (Checked against Perl TT 3.009.)
+    let dir = std::env::temp_dir().join(format!("tt-schema-blocks-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("lib.tt"),
+        "[% BLOCK box %][% box_title %][% END %]",
+    )
+    .unwrap();
+    std::fs::write(dir.join("loader.tt"), "[% PROCESS lib.tt %]").unwrap();
+    let tt = Template::builder()
+        .include_path(vec![IncludePathItem::Path(
+            dir.to_string_lossy().into_owned(),
+        )])
+        .build()
+        .unwrap();
+    let scan = |text: &str| {
+        tt.infer_schema_text(text, &SchemaOptions::default())
+            .unwrap()
+    };
+
+    let processed = scan("[% PROCESS lib.tt %][% PROCESS box %]");
+    assert!(
+        at(&processed.schema, "box_title").is_object(),
+        "{:?}",
+        processed.warnings
+    );
+    assert!(processed.warnings.is_empty(), "{:?}", processed.warnings);
+    let nested = scan("[% INCLUDE loader.tt %][% PROCESS box %]");
+    assert!(
+        at(&nested.schema, "box_title").is_object(),
+        "{:?}",
+        nested.warnings
+    );
+    let included = scan("[% INCLUDE lib.tt %][% PROCESS box %]");
+    assert!(
+        included
+            .warnings
+            .iter()
+            .any(|w| w.contains("cannot follow 'box'")),
+        "{:?}",
+        included.warnings
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
