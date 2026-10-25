@@ -51,6 +51,8 @@ pub fn load_builtin_plugin(
         "datafile" => load_datafile_plugin(args).map(Some),
         "date" => Ok(Some(load_date_plugin(args))),
         "directory" => load_directory_plugin(args, context).map(Some),
+        #[cfg(feature = "dumper")]
+        "dumper" => Ok(Some(load_dumper_plugin(args, context))),
         "file" => load_file_plugin(args).map(Some),
         "format" => Ok(Some(load_format_plugin(args))),
         "html" => Ok(Some(load_html_plugin(args))),
@@ -1418,6 +1420,125 @@ impl TemplateObject for MathPlugin {
 fn load_math_plugin() -> Value {
     Value::Object(Rc::new(MathPlugin))
 }
+
+// ============================================================================
+// Dumper Plugin (Data::Dumper output, via serde_perl_dumper)
+// ============================================================================
+
+#[cfg(feature = "dumper")]
+mod dumper {
+    use super::*;
+
+    /// The `$Data::Dumper::...` variables that Template::Plugin::Dumper sets.
+    /// `USE Dumper(...)` only assigns the options it is given, so settings carry
+    /// over to later `USE`s (t/dumper.t relies on it) and are read at dump time.
+    #[derive(Default, Clone)]
+    pub(crate) struct DumperSettings {
+        indent: Option<u8>,
+        pad: Option<String>,
+        varname: Option<String>,
+        useqq: Option<bool>,
+        terse: Option<bool>,
+        quotekeys: Option<bool>,
+        maxdepth: Option<usize>,
+    }
+
+    struct DumperPlugin {
+        context: Context,
+    }
+
+    impl DumperPlugin {
+        fn dump(&self, args: &[Value]) -> Result<String, ControlFlow> {
+            let values = args
+                .iter()
+                .map(|v| {
+                    serde_perl_dumper::to_value(v)
+                        .map_err(|e| TemplateException::new("Dumper", e.to_string()))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let s = self.context.dumper_settings();
+            let dumper = serde_perl_dumper::Dumper::builder()
+                .maybe_indent(s.indent)
+                .maybe_pad(s.pad)
+                .maybe_varname(s.varname)
+                .maybe_useqq(s.useqq)
+                .maybe_terse(s.terse)
+                .maybe_quotekeys(s.quotekeys)
+                .maybe_maxdepth(s.maxdepth)
+                // Perl's hash order is unspecified; ours is sorted either way.
+                .sortkeys(true)
+                .build();
+            Ok(dumper.dump_all(&values))
+        }
+    }
+
+    impl TemplateObject for DumperPlugin {
+        fn type_name(&self) -> &str {
+            "Template::Plugin::Dumper"
+        }
+
+        fn call_method(&self, method: &str, args: &[Value], _ctx: CallContext) -> MethodResult {
+            let text = match method {
+                "dump" => self.dump(args),
+                "dump_html" => self.dump(args).map(|t| {
+                    t.replace('&', "&amp;")
+                        .replace('<', "&lt;")
+                        .replace('>', "&gt;")
+                        .replace('\n', "<br>\n")
+                }),
+                _ => return MethodResult::NotFound,
+            };
+            match text {
+                Ok(t) => MethodResult::Ok(Value::Str(t)),
+                Err(e) => MethodResult::Err(e),
+            }
+        }
+    }
+
+    /// `USE Dumper(Indent=1, Pad='> ')`, with options in either case.  Options
+    /// that only matter for Perl references and objects (Purity, Freezer, ...)
+    /// are accepted and ignored.
+    pub(crate) fn load_dumper_plugin(args: &[Value], context: &Context) -> Value {
+        let mut cfg = HashMap::new();
+        if let Some(Value::Hash(h)) = args.last() {
+            cfg = h.borrow().clone();
+        }
+        let opt = |name: &str| {
+            cfg.get(&name.to_ascii_lowercase())
+                .or_else(|| cfg.get(name))
+                .filter(|v| v.is_defined())
+        };
+        context.update_dumper_settings(|s| {
+            if let Some(v) = opt("Indent") {
+                s.indent = Some(v.to_int().clamp(0, 255) as u8);
+            }
+            if let Some(v) = opt("Pad") {
+                s.pad = Some(v.to_tt_string());
+            }
+            if let Some(v) = opt("Varname") {
+                s.varname = Some(v.to_tt_string());
+            }
+            if let Some(v) = opt("Useqq") {
+                s.useqq = Some(v.is_truthy());
+            }
+            if let Some(v) = opt("Terse") {
+                s.terse = Some(v.is_truthy());
+            }
+            if let Some(v) = opt("Quotekeys") {
+                s.quotekeys = Some(v.is_truthy());
+            }
+            if let Some(v) = opt("Maxdepth") {
+                s.maxdepth = Some(v.to_int().max(0) as usize);
+            }
+        });
+        Value::Object(Rc::new(DumperPlugin {
+            context: context.clone(),
+        }))
+    }
+}
+
+#[cfg(feature = "dumper")]
+pub(crate) use dumper::{load_dumper_plugin, DumperSettings};
 
 // ============================================================================
 // 11. String Plugin

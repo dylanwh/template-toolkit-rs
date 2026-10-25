@@ -16,10 +16,13 @@ encoding_rs = "0.8"
 jiff = "0.2.38"
 pure-rust-locales = "0.8.2"
 memchr = "2.8.3"
+serde_perl_dumper = {version = "0.1.0", optional = true}
 regex-automata = "0.4"
 regex-syntax = "0.8"
 
 [features]
+# The Dumper plugin (`USE Dumper`), with Data::Dumper output.
+dumper = ["dep:serde_perl_dumper"]
 # Browser support for wasm32-unknown-unknown: the wall clock (Date.now)
 # and the local time zone come from the JavaScript host.
 js = ["dep:js-sys", "jiff/js"]

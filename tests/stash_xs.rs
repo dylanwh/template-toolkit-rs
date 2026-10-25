@@ -13,8 +13,8 @@ use template_toolkit::{
     Template,
 };
 
-/// The template only does `USE Dumper` for its side effect; the Dumper plugin
-/// itself is out of scope, so a stub is registered.
+/// The template only does `USE Dumper` for its side effect; a stub keeps
+/// the suite independent of the `dumper` feature.
 struct DumperStub;
 impl PluginFactory for DumperStub {
     fn load(&self, _c: &Context, _a: &[Value]) -> Result<Value, TemplateException> {

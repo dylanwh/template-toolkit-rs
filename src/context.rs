@@ -1,5 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+#[cfg(feature = "dumper")]
+use crate::plugins::DumperSettings;
 use crate::{
     constants::{
         DEBUG_DIRS, DEBUG_UNDEF, ERROR_FILE, ERROR_PERL, ERROR_PLUGIN, ERROR_RETURN, ERROR_UNDEF,
@@ -117,6 +119,8 @@ struct ContextInner {
     current_line: String,
     current_file: String,
     current_from_compiled: bool,
+    #[cfg(feature = "dumper")]
+    dumper: DumperSettings,
 }
 
 #[bon::bon]
@@ -190,6 +194,8 @@ impl Context {
                 current_line: "1".to_string(),
                 current_file: "input text".to_string(),
                 current_from_compiled: false,
+                #[cfg(feature = "dumper")]
+                dumper: DumperSettings::default(),
             })),
         };
 
@@ -239,6 +245,19 @@ impl Context {
 
     pub fn set_stash(&self, stash: Stash) {
         self.inner.borrow_mut().stash = stash;
+    }
+
+    /// The Dumper plugin's `$Data::Dumper::...` settings.  Perl keeps these
+    /// in package globals, so `USE Dumper(...)` affects later `USE`s; here
+    /// they live as long as the context.
+    #[cfg(feature = "dumper")]
+    pub(crate) fn dumper_settings(&self) -> DumperSettings {
+        self.inner.borrow().dumper.clone()
+    }
+
+    #[cfg(feature = "dumper")]
+    pub(crate) fn update_dumper_settings(&self, f: impl FnOnce(&mut DumperSettings)) {
+        f(&mut self.inner.borrow_mut().dumper);
     }
 
     pub fn trim(&self) -> bool {
