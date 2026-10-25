@@ -997,6 +997,10 @@ impl Context {
         let mut output = String::new();
         match self.eval_block(block, &mut output) {
             Ok(()) => Ok(output),
+            // NEXT or LAST outside any loop compiles to Perl's bare `next;`
+            // or `last;`, which leaves the `BLOCK: { ... }` each template
+            // and BLOCK body is wrapped in: the body ends, keeping its output.
+            Err(ControlFlow::Next(None) | ControlFlow::Last(None)) => Ok(output),
             Err(cf) => {
                 let ex = self.catch_control_flow(cf, &mut output)?;
                 if ex.type_() == ERROR_RETURN {
@@ -1284,6 +1288,7 @@ impl Context {
                 let result_val = self.eval_expr(expr)?;
                 let result_str = result_val.to_tt_string();
 
+                let mut chosen = default_block.as_ref();
                 for (match_expr, blk) in cases {
                     let mval = self.eval_expr(match_expr)?;
                     let matched = match mval {
@@ -1294,13 +1299,17 @@ impl Context {
                         other => other.to_tt_string() == result_str,
                     };
                     if matched {
-                        return self.eval_block(blk, output);
+                        chosen = Some(blk);
+                        break;
                     }
                 }
-                if let Some(dblk) = default_block {
-                    self.eval_block(dblk, output)?;
+                match chosen.map(|blk| self.eval_block(blk, output)) {
+                    // Perl's SWITCH is a bare `SWITCH: { ... }` block, so a
+                    // NEXT or LAST outside any loop only leaves the SWITCH.
+                    Some(Err(ControlFlow::Next(None) | ControlFlow::Last(None))) => Ok(()),
+                    Some(result) => result,
+                    None => Ok(()),
                 }
-                Ok(())
             }
             Stmt::Foreach {
                 loop_var,

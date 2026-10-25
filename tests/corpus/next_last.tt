@@ -1,0 +1,54 @@
+-- test --
+-- name NEXT in a BLOCK ends the block, not the caller's loop --
+[% BLOCK b %]a[% NEXT %]b[% END -%]
+[% FOREACH i = [1,2] %][% PROCESS b %][% i %][% END %]
+-- expect --
+a1a2
+
+-- test --
+-- name NEXT outside a loop ends the template --
+x[% NEXT %]y
+-- expect --
+x
+
+-- test --
+-- name LAST outside a loop ends the template --
+a[% LAST %]b
+-- expect --
+a
+
+-- test --
+-- name NEXT in a SWITCH outside a loop leaves the SWITCH --
+[% SWITCH 1 %][% CASE 1 %]a[% NEXT %]b[% END %]c
+-- expect --
+ac
+
+-- test --
+-- name NEXT in a SWITCH in a loop goes to the next item --
+[% FOREACH i = [1,2] %][% SWITCH i %][% CASE 1 %][% NEXT %][% END %][% i %][% END %]
+-- expect --
+2
+
+-- test --
+-- name NEXT in an anonymous BLOCK leaves the block --
+[% BLOCK %]a[% NEXT %]b[% END %]c
+-- expect --
+ac
+
+-- test --
+-- name LAST in an INCLUDEd BLOCK ends the block --
+[% FOREACH i = [1,2] %][% INCLUDE b %][% i %][% END %][% BLOCK b %][% LAST %][% END %]
+-- expect --
+12
+
+-- test --
+-- name NEXT in a MACRO goes on to the caller's loop, as Perl's next leaves the sub --
+[% MACRO m BLOCK %]a[% NEXT %]b[% END -%]
+[% FOREACH i = [1,2] %][% m %][% i %][% END %]
+-- expect --
+
+-- test --
+-- name LAST in a captured BLOCK ends the template --
+[% x = BLOCK %]a[% LAST %]b[% END %]c[% x %]
+-- expect --
+
