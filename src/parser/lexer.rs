@@ -711,6 +711,39 @@ fn fast_token(b: &[u8], pos: usize) -> Option<(usize, usize)> {
 static ANYCASE_BEFORE_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\A\s*[=\.]").unwrap());
 
+/// Where Perl's quoted-string regex, `(["'])((?:\\\\|\\\2|.|\n)*?)\2`,
+/// closes a string whose text starts at `from`.  Escapes are taken first,
+/// but the lazy repeat backtracks: with no unescaped closing quote, an
+/// escaped one (`\"`) still closes the string, leaving its `\` as text.
+fn closing_quote(bytes: &[u8], from: usize, quote: u8) -> Option<usize> {
+    let escape = |p: usize| {
+        bytes[p] == b'\\' && p + 1 < bytes.len() && (bytes[p + 1] == b'\\' || bytes[p + 1] == quote)
+    };
+
+    // The regex's first try: every escape taken.
+    let mut p = from;
+    while p < bytes.len() {
+        if bytes[p] == quote {
+            return Some(p);
+        }
+        p += if escape(p) { 2 } else { 1 };
+    }
+
+    // That failed, so find the match backtracking reaches first: from each
+    // position, the close it finds trying the alternatives in order.
+    let mut close = vec![None; bytes.len() + 2];
+    for p in (from..bytes.len()).rev() {
+        close[p] = if bytes[p] == quote {
+            Some(p)
+        } else if escape(p) {
+            close[p + 2].or(close[p + 1])
+        } else {
+            close[p + 1]
+        };
+    }
+    close[from]
+}
+
 pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
     let mut tokens: Vec<(String, String)> = Vec::new();
     let mut pos = 0;
@@ -721,23 +754,7 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
         // Handle quoted strings: "..." or '...'
         if b == b'"' || b == b'\'' {
             let quote = b;
-            let mut end_pos = pos + 1;
-            let mut closed = false;
-            while end_pos < bytes.len() {
-                if bytes[end_pos] == b'\\'
-                    && end_pos + 1 < bytes.len()
-                    && (bytes[end_pos + 1] == b'\\' || bytes[end_pos + 1] == quote)
-                {
-                    end_pos += 2;
-                    continue;
-                }
-                if bytes[end_pos] == quote {
-                    closed = true;
-                    break;
-                }
-                end_pos += 1;
-            }
-            if closed {
+            if let Some(end_pos) = closing_quote(bytes, pos + 1, quote) {
                 let inner = &text[pos + 1..end_pos];
                 pos = end_pos + 1;
                 if quote == b'"' {
@@ -937,6 +954,28 @@ mod fast_path_tests {
                 assert_eq!(interp_next(&s, pos), want, "{s:?} from {pos}");
             }
         }
+    }
+
+    #[test]
+    fn closing_quotes_match_the_regex() {
+        for (quote, pat) in [
+            (b'"', r#"\A(?:\\\\|\\"|.)*?""#),
+            (b'\'', r"\A(?:\\\\|\\'|.)*?'"),
+        ] {
+            let re = RegexBuilder::new(pat)
+                .dot_matches_new_line(true)
+                .build()
+                .unwrap();
+            for s in strings(4, 50_000) {
+                assert_eq!(
+                    closing_quote(s.as_bytes(), 0, quote),
+                    re.find(&s).map(|m| m.end() - 1),
+                    "{s:?}"
+                );
+            }
+        }
+        // No unescaped closing quote: the last escaped one closes the string.
+        assert_eq!(closing_quote(br#"a\"b\" x"#, 0, b'"'), Some(5));
     }
 
     #[test]
