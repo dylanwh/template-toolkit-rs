@@ -2,7 +2,6 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fs,
-    os::unix::fs::MetadataExt,
     path::Path,
     rc::Rc,
     sync::{LazyLock, Mutex},
@@ -10,7 +9,7 @@ use std::{
 
 static NON_WORD_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"\s*\W+\s*").unwrap());
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use crate::{
     context::Context,
@@ -430,10 +429,7 @@ impl DatePlugin {
             .or_else(|| params.get("gmt").map(|v| v.is_truthy()))
             .unwrap_or(self.default_gmt);
 
-        let now_secs = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+        let now_secs = crate::clock::unix_secs();
 
         let time_str = match &time_val {
             None | Some(Value::Undefined) => now_secs.to_string(),
@@ -495,10 +491,7 @@ impl TemplateObject for DatePlugin {
                 Err(cf) => MethodResult::Err(cf),
             },
             "now" => {
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0);
+                let now = crate::clock::unix_secs();
                 MethodResult::Ok(Value::Int(now))
             }
             _ => MethodResult::NotFound,
@@ -621,19 +614,9 @@ impl FilePlugin {
         if !nostat {
             let meta = fs::metadata(&abs)
                 .map_err(|e| TemplateException::new("File", format!("{}: {}", abs, e)))?;
-            props.insert("dev".to_string(), Value::Int(meta.dev() as i64));
-            props.insert("ino".to_string(), Value::Int(meta.ino() as i64));
-            props.insert("mode".to_string(), Value::Int(meta.mode() as i64));
-            props.insert("nlink".to_string(), Value::Int(meta.nlink() as i64));
-            props.insert("uid".to_string(), Value::Int(meta.uid() as i64));
-            props.insert("gid".to_string(), Value::Int(meta.gid() as i64));
-            props.insert("rdev".to_string(), Value::Int(meta.rdev() as i64));
-            props.insert("size".to_string(), Value::Int(meta.size() as i64));
-            props.insert("atime".to_string(), Value::Int(meta.atime()));
-            props.insert("mtime".to_string(), Value::Int(meta.mtime()));
-            props.insert("ctime".to_string(), Value::Int(meta.ctime()));
-            props.insert("blksize".to_string(), Value::Int(meta.blksize() as i64));
-            props.insert("blocks".to_string(), Value::Int(meta.blocks() as i64));
+            for (key, value) in stat_fields(&meta) {
+                props.insert(key.to_string(), Value::Int(value));
+            }
             props.insert(
                 "isdir".to_string(),
                 Value::Int(if meta.is_dir() { 1 } else { 0 }),
@@ -1262,9 +1245,10 @@ impl TemplateObject for ImagePlugin {
             }
             "modtime" => {
                 let mtime = fs::metadata(&self.file)
+                    .and_then(|m| m.modified())
                     .ok()
-                    .map(|m| m.mtime())
-                    .unwrap_or(0);
+                    .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                    .map_or(0, |d| d.as_secs() as i64);
                 MethodResult::Ok(Value::Int(mtime))
             }
             _ => MethodResult::NotFound,
@@ -1355,10 +1339,7 @@ thread_local! {
 }
 
 fn time_seed() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0)
+    crate::clock::since_epoch().as_nanos() as u64
 }
 
 /// Uniform float in [0, 1).
@@ -2147,6 +2128,63 @@ fn load_view_plugin(args: &[Value], context: &Context) -> Result<Value, Template
     let view = View::new(context.clone(), cfg)?;
     view.seal();
     Ok(Value::Object(Rc::new(view)))
+}
+
+/// Perl's `stat` fields for the File plugin.  Off Unix (Windows, WASI,
+/// wasm) only what `std` exposes is real, as with Perl's own `stat` there:
+/// size, times, and a mode synthesised from the file type and read-only bit.
+#[cfg(unix)]
+fn stat_fields(meta: &fs::Metadata) -> [(&'static str, i64); 13] {
+    use std::os::unix::fs::MetadataExt;
+    [
+        ("dev", meta.dev() as i64),
+        ("ino", meta.ino() as i64),
+        ("mode", meta.mode() as i64),
+        ("nlink", meta.nlink() as i64),
+        ("uid", meta.uid() as i64),
+        ("gid", meta.gid() as i64),
+        ("rdev", meta.rdev() as i64),
+        ("size", meta.size() as i64),
+        ("atime", meta.atime()),
+        ("mtime", meta.mtime()),
+        ("ctime", meta.ctime()),
+        ("blksize", meta.blksize() as i64),
+        ("blocks", meta.blocks() as i64),
+    ]
+}
+
+#[cfg(not(unix))]
+fn stat_fields(meta: &fs::Metadata) -> [(&'static str, i64); 13] {
+    let secs = |t: std::io::Result<std::time::SystemTime>| {
+        t.ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_secs() as i64)
+    };
+    let perms = if meta.permissions().readonly() {
+        0o444
+    } else {
+        0o666
+    };
+    let mode = if meta.is_dir() {
+        0o040000 | perms | 0o111
+    } else {
+        0o100000 | perms
+    };
+    [
+        ("dev", 0),
+        ("ino", 0),
+        ("mode", mode),
+        ("nlink", 1),
+        ("uid", 0),
+        ("gid", 0),
+        ("rdev", 0),
+        ("size", meta.len() as i64),
+        ("atime", secs(meta.accessed())),
+        ("mtime", secs(meta.modified())),
+        ("ctime", secs(meta.created())),
+        ("blksize", 0),
+        ("blocks", 0),
+    ]
 }
 
 // ============================================================================

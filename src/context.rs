@@ -1,9 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     constants::{
@@ -813,10 +808,7 @@ impl Context {
                         Value::Object(Rc::clone(doc) as Rc<dyn crate::value::TemplateObject>)
                     }
                     CompiledTemplate::Closure { name, .. } => {
-                        let now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .map(|d| d.as_secs() as i64)
-                            .unwrap_or(0);
+                        let now = crate::clock::unix_secs();
                         let mut m = HashMap::new();
                         m.insert("name".to_string(), Value::Str(name.clone()));
                         m.insert("modtime".to_string(), Value::Int(now));

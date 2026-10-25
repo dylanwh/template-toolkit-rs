@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
-    time::{SystemTime, UNIX_EPOCH},
+    time::UNIX_EPOCH,
 };
 
 use crate::{
@@ -173,10 +173,7 @@ impl Default for Provider {
 }
 
 fn current_unix_time() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+    crate::clock::since_epoch().as_secs()
 }
 
 fn file_mtime(path: &Path) -> Option<u64> {
