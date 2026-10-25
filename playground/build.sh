@@ -28,11 +28,17 @@ html = open(page).read()
 assert "/*@@WASM_BINDGEN_GLUE@@*/" in html
 open(out, "w").write(html.replace("/*@@WASM_BINDGEN_GLUE@@*/", js))
 PY
-{
-  printf '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-  printf '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-  printf '</head>\n<body>\n'
-  cat dist/page.html
-  printf '\n</body>\n</html>\n'
-} > dist/index.html
+python3 - dist/page.html dist/index.html <<'PY'
+import sys
+page = open(sys.argv[1]).read()
+# Everything before the first <header> is head material (title, meta,
+# font links, styles); add the small reset the artifact host would supply.
+cut = page.index("\n<header")
+head, body = page[:cut], page[cut:]
+open(sys.argv[2], "w").write(
+    '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+    '<style>body { margin: 0 } [hidden] { display: none !important }</style>\n'
+    + head + "\n</head>\n<body>" + body + "\n</body>\n</html>\n")
+PY
 ls -l dist dist/pkg
