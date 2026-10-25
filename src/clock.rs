@@ -1,12 +1,17 @@
-//! Wall-clock time.  `wasm32-unknown-unknown` has no clock without a
-//! JavaScript host (`SystemTime::now` panics there), so it reports the
-//! epoch; every other target, including WASI, uses the system clock.
+//! Wall-clock time.  `wasm32-unknown-unknown` has no clock of its own
+//! (`SystemTime::now` panics there): with the `js` feature it asks the
+//! JavaScript host (`Date.now()`), otherwise it reports the epoch.  Every
+//! other target, including WASI, uses the system clock.
 
 use std::time::Duration;
 
 /// Time since the Unix epoch.
 pub(crate) fn since_epoch() -> Duration {
-    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown", feature = "js"))]
+    {
+        Duration::from_secs_f64(js_sys::Date::now() / 1000.0)
+    }
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown", not(feature = "js")))]
     {
         Duration::ZERO
     }

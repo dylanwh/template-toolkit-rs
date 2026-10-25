@@ -16,8 +16,16 @@ pure-rust-locales = "0.8.2"
 memchr = "2.8.3"
 regex-automata = "0.4"
 
+[features]
+# Browser support for wasm32-unknown-unknown: the wall clock (Date.now)
+# and the local time zone come from the JavaScript host.
+js = ["dep:js-sys", "jiff/js"]
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+js-sys = { version = "0.3", optional = true }
+
 [workspace]
-members = ["tpage-rs"]
+members = ["tpage-rs", "playground"]
 default-members = [".", "tpage-rs"]
 
 # Smaller, faster binaries (measured on tpage-rs: ~10% faster cold start and
@@ -28,3 +36,8 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# For the WebAssembly playground: size matters more than speed there.
+[profile.wasm]
+inherits = "release"
+opt-level = "s"

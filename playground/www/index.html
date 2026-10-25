@@ -1,0 +1,449 @@
+<title>Template Toolkit Playground</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a two-pane workbench, template source left and rendered output
+     right, under one toolbar; the panes stack on narrow screens. */
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --fg: #1a1f2b;
+    --muted: #5b6475;
+    --line: #d7dce5;
+    --accent: #2a55a3;
+    --tag: #a8520a;
+    --tag-bg: #fbeedd;
+    --ok: #1d7a4a;
+    --err: #b3261e;
+    --err-bg: #fdecea;
+    --ws: #a7b0c0;
+    --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-code: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --code-size: 13.5px;
+    --code-line: 1.6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
+      --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
+      --err-bg: #3a1d1b; --ws: #4f586b; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
+    --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
+    --err-bg: #3a1d1b; --ws: #4f586b; color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 12px;
+    padding-block: 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+    min-height: 0;
+  }
+
+  /* Toolbar */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .mark { font-family: var(--font-code); font-weight: 600; font-size: 17px; margin: 0; white-space: nowrap; }
+  .mark .br { color: var(--tag); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; flex: 1 1 auto; }
+  .field { display: flex; align-items: center; gap: 6px; }
+  .field > span, .label { font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  select, button {
+    font: inherit; font-size: 13px; color: var(--fg); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .checks label, .toggle { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+  input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
+
+  /* Panes */
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
+  .pane {
+    display: grid; grid-template-rows: auto 1fr; min-height: 0; min-width: 0;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  }
+  .pane-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 7px 10px 7px 14px; border-bottom: 1px solid var(--line);
+  }
+  .pane-head h2 { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .pane-head .spacer { flex: 1; }
+  .status { font-family: var(--font-code); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .status.ok::before, .status.err::before { content: "● "; }
+  .status.ok::before { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 3px 9px; background: transparent; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+
+  /* Editor: a transparent textarea over a highlighted copy of its text. */
+  .editor { position: relative; min-height: 0; overflow: hidden; }
+  .editor textarea, .editor pre {
+    position: absolute; inset: 0; margin: 0; border: 0; box-sizing: border-box;
+    padding: 12px 14px; font-family: var(--font-code); font-size: var(--code-size); line-height: var(--code-line);
+    white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; overflow: auto;
+  }
+  .editor pre { color: var(--fg); pointer-events: none; overflow: hidden; }
+  .editor textarea {
+    color: transparent; caret-color: var(--fg); background: transparent; resize: none; outline: none;
+  }
+  .editor textarea::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: transparent; }
+  .tt { color: var(--tag); background: var(--tag-bg); border-radius: 3px; }
+  .tt-c { color: var(--muted); font-style: italic; }
+
+  /* Output */
+  .out { min-height: 0; overflow: auto; }
+  .out pre {
+    margin: 0; padding: 12px 14px; font-family: var(--font-code); font-size: var(--code-size);
+    line-height: var(--code-line); white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4;
+  }
+  .out .ws { color: var(--ws); }
+  .out .error { color: var(--err); background: var(--err-bg); border-radius: 6px; margin: 12px 14px; padding: 10px 12px; }
+  .out iframe { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
+
+  footer { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  footer code { font-family: var(--font-code); }
+
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    .panes { grid-template-columns: 1fr; }
+    .pane { height: 60vh; }
+  }
+</style>
+
+<header class="bar">
+  <h1 class="mark"><span class="br">[%</span> Template Toolkit Playground <span class="br">%]</span></h1>
+  <div class="controls">
+    <label class="field" for="example"><span>Example</span>
+      <select id="example"></select>
+    </label>
+    <label class="field" for="tags"><span>Tags</span>
+      <select id="tags">
+        <option value="">[% %]</option>
+        <option value="star">[* *]</option>
+        <option value="html">&lt;!-- --&gt;</option>
+        <option value="asp">&lt;% %&gt;</option>
+        <option value="php">&lt;? ?&gt;</option>
+        <option value="mason">&lt;% &gt;</option>
+        <option value="metatext">%% %%</option>
+        <option value="template1">[% %] / %% %%</option>
+        <option value="outline">[% %] + %% lines</option>
+      </select>
+    </label>
+    <label class="field" for="pre"><span>Pre-chomp</span>
+      <select id="pre"><option value="none">none</option><option value="one">one</option><option value="collapse">collapse</option><option value="greedy">greedy</option></select>
+    </label>
+    <label class="field" for="post"><span>Post-chomp</span>
+      <select id="post"><option value="none">none</option><option value="one">one</option><option value="collapse">collapse</option><option value="greedy">greedy</option></select>
+    </label>
+    <div class="checks">
+      <label for="interpolate"><input type="checkbox" id="interpolate"> INTERPOLATE</label>
+      <label for="anycase"><input type="checkbox" id="anycase"> ANYCASE</label>
+      <label for="trim"><input type="checkbox" id="trim"> TRIM</label>
+      <label for="strict"><input type="checkbox" id="strict"> STRICT</label>
+    </div>
+  </div>
+</header>
+
+<main class="panes">
+  <section class="pane" aria-labelledby="src-h">
+    <div class="pane-head">
+      <h2 id="src-h">Template</h2>
+      <span class="spacer"></span>
+      <button type="button" id="copy-src">Copy</button>
+    </div>
+    <div class="editor">
+      <pre id="hl" aria-hidden="true"></pre>
+      <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Template source"></textarea>
+    </div>
+  </section>
+  <section class="pane" aria-labelledby="out-h">
+    <div class="pane-head">
+      <h2 id="out-h">Output</h2>
+      <span id="status" class="status">loading…</span>
+      <span class="spacer"></span>
+      <label class="toggle" for="show-ws"><input type="checkbox" id="show-ws"> Show whitespace</label>
+      <span class="seg" role="group" aria-label="Output view">
+        <button type="button" id="view-text" aria-pressed="true">Text</button>
+        <button type="button" id="view-html" aria-pressed="false">HTML</button>
+      </span>
+      <button type="button" id="copy-out">Copy</button>
+    </div>
+    <div class="out" id="out"><pre id="out-text"></pre></div>
+  </section>
+</main>
+
+<footer>
+  <span id="version">Template Toolkit 3.009, Rust port, running in your browser as WebAssembly.</span>
+  <span>Set variables in the template with <code>[% name = 'value' %]</code>. <code>PERL</code> blocks and file includes are not available here.</span>
+</footer>
+
+<script type="module">
+/*@@WASM_BINDGEN_GLUE@@*/
+
+const EXAMPLES = [
+  ["Variables and vmethods", `[% user = { name => 'ada lovelace', langs => ['Perl', 'Rust', 'Analytical Engine'] } -%]
+Hello, [% user.name.ucfirst %]!
+You know [% user.langs.size %] languages: [% user.langs.join(', ') %].
+Sorted, upper case: [% user.langs.sort.join(' / ') | upper %]
+[% text = 'The quick brown fox' -%]
+Words: [% text.split(' ').size %], reversed: [% text.split(' ').reverse.join(' ') %]
+Replace: [% text.replace('quick', 'slow') %]`],
+  ["FOREACH and loop", `[% fruits = [ 'apple', 'banana', 'cherry', 'damson' ] -%]
+<ul>
+[% FOREACH fruit IN fruits -%]
+  <li class="[% loop.odd ? 'odd' : 'even' %]">[% loop.count %] of [% loop.size %]: [% fruit %]
+    [%- ' (first)' IF loop.first %][% ' (last)' IF loop.last %]</li>
+[% END -%]
+</ul>
+[% FOREACH pair IN { b => 2, a => 1, c => 3 } -%]
+[% pair.key %] = [% pair.value %]
+[% END -%]`],
+  ["Filters", `[% FILTER html %]<b>Tom & Jerry</b>[% END %]
+[% 'hello world' | upper %] / [% 'Hello' | lower | repeat(3) %]
+[% FILTER indent('> ') -%]
+Quoted line one
+Quoted line two
+[%- END %]
+[% "The Template Toolkit is a fast, flexible and highly extensible template processing system." | truncate(40) %]
+[% 'a b c' | replace(' ', '-') %]   [% 'spaces and/slashes' | uri %]`],
+  ["BLOCK, MACRO and WRAPPER", `[% BLOCK box -%]
++------------------------------+
+| [% content %]
++------------------------------+
+[%- END -%]
+[% MACRO bold(text) BLOCK %]<b>[% text %]</b>[% END -%]
+[% WRAPPER box %]Wrapped by the box block[% END %]
+[% bold('Macros take arguments') %]
+[% INCLUDE box content = 'INCLUDE localises variables' %]`],
+  ["IF, SWITCH and TRY", `[% score = 72 -%]
+[% IF score >= 90 %]Excellent[% ELSIF score >= 60 %]Pass[% ELSE %]Fail[% END %]
+[% SWITCH score div 10 -%]
+[% CASE [9, 10] %]A grade
+[% CASE 7 %]C grade
+[% CASE %]Another grade
+[% END -%]
+[% TRY -%]
+[% THROW billing 'card declined' -%]
+[% CATCH billing -%]
+Caught [% error.type %]: [% error.info %]
+[% END -%]`],
+  ["Chomping whitespace", `Toggle "Show whitespace" and the chomp options above.
+<p>
+  [%- 'pre-chomped with -' %]
+  [% 'post-chomped with -' -%]
+  next line
+  [%~ 'greedy ~ on both sides' ~%]
+  [%= 'collapse = to one space' =%]
+</p>`],
+  ["Plugins: Date, Math, Table", `[% USE date -%]
+Today is [% date.format(date.now, '%A, %d %B %Y') %].
+[% USE Math -%]
+sqrt(2) = [% Math.sqrt(2) %], 2 ** 10 = [% Math.pow(2, 10) %]
+[% USE table(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], cols = 3) -%]
+[% FOREACH row IN table.rows -%]
+[% row.join(' | ') %]
+[% END -%]`],
+  ["An error", `This template has a mistake:
+[% FOREACH item IN items %]
+  [% item %]
+[% IF %]`],
+];
+
+const $ = (id) => document.getElementById(id);
+const src = $("src"), hl = $("hl"), out = $("out"), status = $("status");
+const optionIds = ["tags", "pre", "post", "interpolate", "anycase", "trim", "strict", "show-ws"];
+let view = "text";
+let lastOutput = "";
+
+// Tag delimiters per style, for highlighting the editor.
+const TAG_RE = {
+  "": /\[%[\s\S]*?%\]/g,
+  star: /\[\*[\s\S]*?\*\]/g,
+  html: /<!--[\s\S]*?-->/g,
+  asp: /<%[\s\S]*?%>/g,
+  php: /<\?[\s\S]*?\?>/g,
+  mason: /<%[\s\S]*?>/g,
+  metatext: /%%[\s\S]*?%%/g,
+  template1: /[\[%]%[\s\S]*?%[\]%]/g,
+  outline: /\[%[\s\S]*?%\]|^%%.*$/gm,
+};
+
+const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function highlight() {
+  const text = src.value;
+  const re = TAG_RE[$("tags").value] ?? TAG_RE[""];
+  let html = "", last = 0;
+  for (const m of text.matchAll(re)) {
+    html += escapeHtml(text.slice(last, m.index));
+    const inner = m[0].replace(/^(?:<!--|\[%|\[\*|<%|<\?|%%|[\[%]%)[-=~+]?/, "");
+    html += `<span class="${inner.startsWith("#") ? "tt tt-c" : "tt"}">${escapeHtml(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  // A trailing newline needs a character after it to take up a line.
+  hl.innerHTML = html + escapeHtml(text.slice(last)) + "​";
+  hl.scrollTop = src.scrollTop;
+}
+
+function showWhitespace(text) {
+  return escapeHtml(text)
+    .replace(/ /g, '<span class="ws">·</span>')
+    .replace(/\t/g, '<span class="ws">→\t</span>')
+    .replace(/\n/g, '<span class="ws">↵</span>\n');
+}
+
+function options() {
+  return {
+    tagStyle: $("tags").value,
+    preChomp: $("pre").value,
+    postChomp: $("post").value,
+    interpolate: $("interpolate").checked,
+    anycase: $("anycase").checked,
+    trim: $("trim").checked,
+    strict: $("strict").checked,
+  };
+}
+
+function setView(next) {
+  view = next;
+  $("view-text").setAttribute("aria-pressed", String(view === "text"));
+  $("view-html").setAttribute("aria-pressed", String(view === "html"));
+  $("show-ws").disabled = view === "html";
+  run();
+}
+
+function show(output, error) {
+  if (error) {
+    out.innerHTML = `<pre class="error"></pre>`;
+    out.firstChild.textContent = error;
+    return;
+  }
+  if (view === "html") {
+    out.innerHTML = `<iframe sandbox title="Rendered HTML"></iframe>`;
+    out.firstChild.srcdoc = output;
+  } else {
+    out.innerHTML = `<pre id="out-text"></pre>`;
+    const pre = out.firstChild;
+    if ($("show-ws").checked) pre.innerHTML = showWhitespace(output);
+    else pre.textContent = output;
+  }
+}
+
+let ready = false;
+function run() {
+  highlight();
+  if (!ready) return;
+  const t0 = performance.now();
+  try {
+    lastOutput = render(src.value, options());
+    const ms = performance.now() - t0;
+    status.className = "status ok";
+    status.textContent = `rendered in ${ms < 1 ? ms.toFixed(2) : ms.toFixed(1)} ms`;
+    show(lastOutput, null);
+  } catch (e) {
+    lastOutput = "";
+    status.className = "status err";
+    status.textContent = "error";
+    show("", String(e));
+  }
+  save();
+}
+
+let timer = 0;
+const schedule = () => { clearTimeout(timer); timer = setTimeout(run, 60); };
+
+// Remember the viewer's draft and options in this browser, if allowed.
+const KEY = "tt-playground-v1";
+function save() {
+  try {
+    const state = { src: src.value };
+    for (const id of optionIds) state[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value;
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch {}
+}
+function restore() {
+  try {
+    const state = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (!state) return false;
+    for (const id of optionIds) {
+      if (!(id in state)) continue;
+      if ($(id).type === "checkbox") $(id).checked = !!state[id];
+      else $(id).value = state[id];
+    }
+    src.value = state.src ?? "";
+    return true;
+  } catch { return false; }
+}
+
+// Copy to the clipboard, or select the text so it can be copied by hand.
+async function copy(text, button, selectTarget) {
+  const label = button.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = "Copied";
+  } catch {
+    selectTarget();
+    button.textContent = "Selected";
+  }
+  setTimeout(() => { button.textContent = label; }, 1400);
+}
+const selectSource = () => { src.focus(); src.select(); };
+const selectOutput = () => {
+  const node = out.querySelector("pre");
+  if (!node) return;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  getSelection().removeAllRanges();
+  getSelection().addRange(range);
+};
+
+for (const [i, [name]] of EXAMPLES.entries()) $("example").add(new Option(name, String(i)));
+$("example").addEventListener("change", () => {
+  src.value = EXAMPLES[Number($("example").value)][1];
+  run();
+});
+src.addEventListener("input", schedule);
+src.addEventListener("scroll", () => { hl.scrollTop = src.scrollTop; });
+src.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    src.setRangeText("  ", src.selectionStart, src.selectionEnd, "end");
+    schedule();
+  }
+});
+for (const id of optionIds) $(id).addEventListener("change", run);
+$("view-text").addEventListener("click", () => setView("text"));
+$("view-html").addEventListener("click", () => setView("html"));
+$("copy-src").addEventListener("click", (e) => copy(src.value, e.currentTarget, selectSource));
+$("copy-out").addEventListener("click", (e) => copy(lastOutput, e.currentTarget, selectOutput));
+
+if (!restore()) src.value = EXAMPLES[0][1];
+highlight();
+
+try {
+  const bytes = await (await fetch("pkg/tt_playground_bg.wasm")).arrayBuffer();
+  await __wbg_init({ module_or_path: bytes });
+  ready = true;
+  $("version").textContent = `${version()}, running in your browser as WebAssembly.`;
+  run();
+} catch (e) {
+  status.className = "status err";
+  status.textContent = "not loaded";
+  show("", `The template engine could not start in this browser: ${e}`);
+}
+</script>
