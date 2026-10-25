@@ -1,0 +1,12 @@
+template-toolkit-rs is a Rust port of Perl's Template Toolkit, which is
+Copyright (C) 1996-2020 Andy Wardley and free software under the same
+terms as Perl itself.  The port is offered on those same terms: you may
+redistribute and/or modify it under either
+
+  a) the GNU General Public License as published by the Free Software
+     Foundation, version 1 or (at your option) any later version
+     (LICENSE-GPL), or
+
+  b) the "Artistic License" (LICENSE-ARTISTIC).
+
+SPDX-License-Identifier: Artistic-1.0-Perl OR GPL-1.0-or-later

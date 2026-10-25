@@ -3,6 +3,7 @@ name = "template-toolkit"
 version = "3.0.9"
 edition = "2021"
 description = "Rust port of Perl's Template::Toolkit (TT2)"
+license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
 
 [dependencies]
 bon = "3"

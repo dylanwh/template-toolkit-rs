@@ -3,6 +3,7 @@ name = "tt-playground"
 version = "0.1.0"
 edition = "2021"
 description = "Template Toolkit playground: the Rust port compiled to WebAssembly"
+license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
 publish = false
 
 [lib]

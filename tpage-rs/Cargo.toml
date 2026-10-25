@@ -3,6 +3,7 @@ name = "tpage-rs"
 version = "0.1.0"
 edition = "2021"
 description = "Rust port of the tpage command from Perl's Template::Toolkit"
+license = "Artistic-1.0-Perl OR GPL-1.0-or-later"
 
 [dependencies]
 template-toolkit = { path = ".." }
