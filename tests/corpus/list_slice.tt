@@ -1,0 +1,17 @@
+-- test --
+-- name slice past the end gives undefined items --
+[% l = [1,2,3] %][% l.slice(0, 4).join(',') %]|[% l.slice(5, 6).size %]|[% e = [] %][% e.slice(0, 2).size %]
+-- expect --
+1,2,3,,|2|3
+
+-- test --
+-- name slice counts a negative index from the end once --
+[% l = [1,2,3] %][% l.slice(-2).join(',') %]|[% l.slice(0, -1).join(',') %]|[% l.slice(-5, 1).join(',') %]
+-- expect --
+2,3|1,2,3|2,3,1,2
+
+-- test --
+-- name slice with from after to, or no arguments --
+[% l = [1,2,3] %][[% l.slice(2, 1).join(',') %]][% e = [] %][% e.slice.size %]|[% l.slice('', 1).join(',') %]
+-- expect --
+[]0|1,2

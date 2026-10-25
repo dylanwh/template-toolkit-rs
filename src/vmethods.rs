@@ -1339,50 +1339,30 @@ pub fn vmethod_list_merge(target: &Value, args: &[Value]) -> Result<Value, Contr
 }
 
 pub fn vmethod_list_slice(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
-    let list_clone = extract_list_clone(target);
-    let len = list_clone.len() as i64;
-    if len == 0 {
-        return Ok(Value::list(Vec::new()));
-    }
-    let mut from = args
+    // `$from ||= 0; $to = $#$list unless defined $to;`, negatives counted
+    // from the end once, then `[ @$list[$from..$to] ]`: an index past
+    // either end gives undef rather than being clamped.
+    let list = extract_list_clone(target);
+    let len = list.len() as i64;
+    let from = args
         .first()
-        .and_then(|v| {
-            if v.is_defined() {
-                Some(v.to_int())
-            } else {
-                None
-            }
-        })
-        .unwrap_or(0);
-    let mut to = args
+        .filter(|v| v.is_truthy())
+        .map_or(0, Value::to_int);
+    let to = args
         .get(1)
-        .and_then(|v| {
-            if v.is_defined() {
-                Some(v.to_int())
-            } else {
-                None
-            }
-        })
-        .unwrap_or(len - 1);
-    if from < 0 {
-        from += len;
-    }
-    if from < 0 {
-        from = 0;
-    }
-    if to < 0 {
-        to += len;
-    }
-    if to >= len {
-        to = len - 1;
-    }
-    if from > to || from >= len {
-        Ok(Value::list(Vec::new()))
-    } else {
-        Ok(Value::list(
-            list_clone[from as usize..=to as usize].to_vec(),
-        ))
-    }
+        .filter(|v| v.is_defined())
+        .map_or(len - 1, Value::to_int);
+    let from = if from < 0 { from + len } else { from };
+    let to = if to < 0 { to + len } else { to };
+    let item = |i: i64| {
+        let j = if i < 0 { i + len } else { i };
+        if (0..len).contains(&j) {
+            list[j as usize].clone()
+        } else {
+            Value::Undefined
+        }
+    };
+    Ok(Value::list((from..=to).map(item).collect()))
 }
 
 pub fn vmethod_list_splice(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
