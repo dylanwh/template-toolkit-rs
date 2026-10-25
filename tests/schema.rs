@@ -235,3 +235,23 @@ fn modules_and_filters_are_listed() {
     assert_eq!(report["modules"], json!(["Date", "Dumper", "Format"]));
     assert!(report["variables"]["properties"]["bio"].is_object());
 }
+
+#[test]
+fn item_with_a_literal_key_is_that_key() {
+    let s = schema(
+        r#"[% user.item("name") %] [% user.item('address').city %] [% rows.item(0).id %] [% conf.item(key) %]"#,
+    );
+    assert_eq!(at(&s, "user.name")["type"], json!(["string", "number"]));
+    assert_eq!(
+        at(&s, "user.address.city")["type"],
+        json!(["string", "number"])
+    );
+    assert_eq!(required(at(&s, "user")), ["address", "name"]);
+    assert_eq!(at(&s, "rows")["type"], "array");
+    assert!(at(&s, "rows.*.id").is_object());
+    assert!(
+        at(&s, "key").is_object(),
+        "a variable key is an input itself"
+    );
+    assert_eq!(schema("[% user.item('name') %]"), schema("[% user.name %]"));
+}

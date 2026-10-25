@@ -1112,7 +1112,7 @@ impl<'l, 'a> Scanner<'l, 'a> {
             Expr::Str(k) if k.parse::<u64>().is_ok() => self.items(parent),
             Expr::Str(k) if is_private(k) => self.fresh(0),
             Expr::Str(k) => {
-                if let Some(out) = self.vmethod(parent, k, seg.args.as_ref()) {
+                if let Some(out) = self.vmethod(parent, k, seg.args.as_ref(), required) {
                     return out;
                 }
                 let c = self.child(parent, k, required);
@@ -1136,8 +1136,14 @@ impl<'l, 'a> Scanner<'l, 'a> {
     }
 
     /// Model the built-in virtual method `name` on `target`, or None if
-    /// `name` is not one.
-    fn vmethod(&mut self, target: NodeId, name: &str, args: Option<&ArgsSpec>) -> Option<NodeId> {
+    /// `name` is not one.  `required` is as for a key at this step.
+    fn vmethod(
+        &mut self,
+        target: NodeId,
+        name: &str,
+        args: Option<&ArgsSpec>,
+        required: bool,
+    ) -> Option<NodeId> {
         let known = matches!(
             name,
             "first"
@@ -1197,6 +1203,19 @@ impl<'l, 'a> Scanner<'l, 'a> {
         let ambiguous = matches!(name, "items" | "item" | "hash" | "list");
         if !known || (ambiguous && args.is_none()) {
             return None;
+        }
+        // `item` with a literal key is that key: var.item('name') is
+        // var.name, and var.item(0) is var.0.
+        if let (Some(a), "item") = (args, name) {
+            if let ([key], []) = (a.positional.as_slice(), a.named.as_slice()) {
+                match key {
+                    Expr::Str(k) if k.parse::<u64>().is_ok() => return Some(self.items(target)),
+                    Expr::Str(k) if is_private(k) => return Some(self.fresh(0)),
+                    Expr::Str(k) => return Some(self.child(target, k, required)),
+                    Expr::Int(_) => return Some(self.items(target)),
+                    _ => {}
+                }
+            }
         }
         if let Some(a) = args {
             self.args(a);
