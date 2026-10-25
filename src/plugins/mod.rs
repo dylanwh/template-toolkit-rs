@@ -1,7 +1,6 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
-    ffi::{CStr, CString},
     fs,
     os::unix::fs::MetadataExt,
     path::Path,
@@ -15,6 +14,7 @@ use crate::{
     error::{ControlFlow, TemplateException},
     filters::{html_filter, perl_sprintf, uri_filter, url_filter, FilterDef, FilterFn},
     iterator::TemplateIterator,
+    strftime,
     value::{format_perl_float, CallContext, MethodResult, TemplateObject, Value},
     view::View,
     vmethods::{vmethod_scalar_split, vmethod_scalar_substr, GLOBAL_VMETHODS},
@@ -444,121 +444,39 @@ impl DatePlugin {
             }
         };
 
-        let mut tm: libc::tm = unsafe { std::mem::zeroed() };
-        if !time_str.is_empty() && time_str.chars().all(|c| c.is_ascii_digit()) {
-            let epoch = time_str.parse::<i64>().unwrap_or(now_secs) as libc::time_t;
-            unsafe {
-                if gmt {
-                    libc::gmtime_r(&epoch, &mut tm);
-                } else {
-                    libc::localtime_r(&epoch, &mut tm);
-                }
-            }
+        let zoned = if !time_str.is_empty() && time_str.chars().all(|c| c.is_ascii_digit()) {
+            strftime::from_epoch(time_str.parse::<i64>().unwrap_or(now_secs), gmt)
         } else {
             // Split on non-digits
             let parts: Vec<&str> = time_str
                 .split(|c: char| !c.is_ascii_digit())
                 .filter(|s| !s.is_empty())
                 .collect();
-            if parts.len() < 6 {
-                return Err(ControlFlow::Exception(TemplateException::new(
+            let bad_date = || {
+                ControlFlow::Exception(TemplateException::new(
                     "date",
                     format!(
                         "bad time/date string:  expects 'h:m:s d:m:y'  got: '{}'",
                         time_str
                     ),
-                )));
-            }
-            let (sec, min, hour, mday, mut mon, mut year) = if parts[0].len() == 4 {
-                // Y:M:D H:M:S -> parts[5], parts[4], parts[3], parts[2], parts[1], parts[0]
-                (
-                    parts[5].parse::<i32>().unwrap_or(0),
-                    parts[4].parse::<i32>().unwrap_or(0),
-                    parts[3].parse::<i32>().unwrap_or(0),
-                    parts[2].parse::<i32>().unwrap_or(1),
-                    parts[1].parse::<i32>().unwrap_or(1),
-                    parts[0].parse::<i32>().unwrap_or(1970),
-                )
-            } else {
-                // H:M:S D:M:Y -> parts[2], parts[1], parts[0], parts[3], parts[4], parts[5]
-                (
-                    parts[2].parse::<i32>().unwrap_or(0),
-                    parts[1].parse::<i32>().unwrap_or(0),
-                    parts[0].parse::<i32>().unwrap_or(0),
-                    parts[3].parse::<i32>().unwrap_or(1),
-                    parts[4].parse::<i32>().unwrap_or(1),
-                    parts[5].parse::<i32>().unwrap_or(1970),
-                )
+                ))
             };
-            mon -= 1;
-            year -= 1900;
-            tm.tm_sec = sec;
-            tm.tm_min = min;
-            tm.tm_hour = hour;
-            tm.tm_mday = mday;
-            tm.tm_mon = mon;
-            tm.tm_year = year;
-            tm.tm_isdst = -1;
-            unsafe {
-                libc::mktime(&mut tm);
+            if parts.len() < 6 {
+                return Err(bad_date());
             }
-        }
+            let n = |i: usize, default: i32| parts[i].parse::<i32>().unwrap_or(default);
+            let (sec, min, hour, mday, mon, year) = if parts[0].len() == 4 {
+                // Y:M:D H:M:S
+                (n(5, 0), n(4, 0), n(3, 0), n(2, 1), n(1, 1), n(0, 1970))
+            } else {
+                // H:M:S D:M:Y
+                (n(2, 0), n(1, 0), n(0, 0), n(3, 1), n(4, 1), n(5, 1970))
+            };
+            strftime::mktime_local(year, mon, mday, hour, min, sec).ok_or_else(bad_date)?
+        };
 
-        let formatted = format_strftime_with_locale(&format_str, &tm, locale_opt.as_deref());
+        let formatted = strftime::strftime(&format_str, &zoned, locale_opt.as_deref());
         Ok(Value::Str(formatted))
-    }
-}
-
-pub fn format_strftime_with_locale(
-    format_str: &str,
-    tm: &libc::tm,
-    locale: Option<&str>,
-) -> String {
-    unsafe {
-        let mut old_locale_str: Option<CString> = None;
-        if let Some(loc) = locale {
-            if !loc.is_empty() {
-                let cur_ptr = libc::setlocale(libc::LC_ALL, std::ptr::null());
-                if !cur_ptr.is_null() {
-                    old_locale_str = Some(CStr::from_ptr(cur_ptr).to_owned());
-                }
-                for suffix in [
-                    "",
-                    ".ISO8859-1",
-                    ".ISO_8859-15",
-                    ".US-ASCII",
-                    ".UTF-8",
-                    ".utf8",
-                ] {
-                    let try_loc = format!("{}{}", loc, suffix);
-                    if let Ok(c_try) = CString::new(try_loc) {
-                        let res_ptr = libc::setlocale(libc::LC_ALL, c_try.as_ptr());
-                        if !res_ptr.is_null() {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut buf = vec![0u8; 1024];
-        let c_fmt = CString::new(format_str).unwrap_or_default();
-        let n = libc::strftime(
-            buf.as_mut_ptr() as *mut libc::c_char,
-            buf.len(),
-            c_fmt.as_ptr(),
-            tm,
-        );
-
-        if let Some(old_c) = old_locale_str {
-            libc::setlocale(libc::LC_ALL, old_c.as_ptr());
-        }
-
-        if n == 0 {
-            String::new()
-        } else {
-            String::from_utf8_lossy(&buf[..n]).into_owned()
-        }
     }
 }
 
@@ -1428,6 +1346,32 @@ fn load_iterator_plugin(args: &[Value]) -> Value {
 // 10. Math Plugin
 // ============================================================================
 
+thread_local! {
+    /// Math.rand/srand state (splitmix64), seeded from the clock like Perl.
+    static RNG_STATE: std::cell::Cell<u64> = std::cell::Cell::new(time_seed());
+}
+
+fn time_seed() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0)
+}
+
+/// Uniform float in [0, 1).
+fn next_rand() -> f64 {
+    let x = RNG_STATE.with(|s| {
+        let v = s.get().wrapping_add(0x9E37_79B9_7F4A_7C15);
+        s.set(v);
+        v
+    });
+    let mut z = x;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^= z >> 31;
+    (z >> 11) as f64 / (1u64 << 53) as f64
+}
+
 #[derive(Debug, Clone)]
 pub struct MathPlugin;
 
@@ -1469,15 +1413,17 @@ impl TemplateObject for MathPlugin {
             "sin" => MethodResult::Ok(Value::Str(format_perl_float(a0.sin()))),
             "sqrt" => MethodResult::Ok(Value::Str(format_perl_float(a0.sqrt()))),
             "srand" => {
-                let seed = args.first().map(|v| v.to_int() as u32).unwrap_or(1);
-                unsafe {
-                    libc::srand(seed);
-                }
-                MethodResult::Ok(Value::Int(1))
+                // Perl's srand returns the seed it used.
+                let seed = match args.first() {
+                    Some(v) if v.is_defined() => v.to_int() as u64,
+                    _ => time_seed(),
+                };
+                RNG_STATE.with(|s| s.set(seed));
+                MethodResult::Ok(Value::Int(seed as i64))
             }
             "rand" => {
                 let scale = if args.is_empty() { 1.0 } else { a0 };
-                let r = unsafe { (libc::rand() as f64) / ((libc::RAND_MAX as f64) + 1.0) };
+                let r = next_rand();
                 MethodResult::Ok(Value::Str(format_perl_float(r * scale)))
             }
             _ => MethodResult::NotFound,

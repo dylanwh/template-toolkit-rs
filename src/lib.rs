@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 pub mod constants;
 pub mod context;
 pub mod document;
@@ -9,6 +11,7 @@ pub mod plugins;
 pub mod provider;
 pub mod service;
 pub mod stash;
+pub mod strftime;
 pub mod value;
 pub mod view;
 pub mod vmethods;

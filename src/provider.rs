@@ -188,20 +188,9 @@ fn file_mtime(path: &Path) -> Option<u64> {
 }
 
 fn set_file_mtime(path: &Path, mtime: u64) {
-    if let Ok(c_path) = std::ffi::CString::new(path.to_string_lossy().as_bytes()) {
-        let times = [
-            libc::timespec {
-                tv_sec: mtime as libc::time_t,
-                tv_nsec: 0,
-            },
-            libc::timespec {
-                tv_sec: mtime as libc::time_t,
-                tv_nsec: 0,
-            },
-        ];
-        unsafe {
-            libc::utimensat(libc::AT_FDCWD, c_path.as_ptr(), times.as_ptr(), 0);
-        }
+    let t = UNIX_EPOCH + std::time::Duration::from_secs(mtime);
+    if let Ok(f) = fs::File::open(path) {
+        let _ = f.set_times(fs::FileTimes::new().set_accessed(t).set_modified(t));
     }
 }
 

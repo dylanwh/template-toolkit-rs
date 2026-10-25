@@ -1,26 +1,12 @@
 mod common;
 use common::*;
-use template_toolkit::{value::Value, Template};
+use template_toolkit::{strftime, value::Value, Template};
 
 const FORMAT_DEFAULT: &str = "%H:%M:%S %d-%b-%Y";
 
+// Stand-ins for POSIX::strftime/mktime/localtime from the upstream test.
 fn strftime_local(fmt: &str, t: i64) -> String {
-    use std::ffi::CString;
-    unsafe {
-        let tt: libc::time_t = t as libc::time_t;
-        let mut tm: libc::tm = std::mem::zeroed();
-        libc::localtime_r(&tt, &mut tm);
-        let cf = CString::new(fmt).unwrap();
-        let mut buf = vec![0u8; 512];
-        let n = libc::strftime(
-            buf.as_mut_ptr() as *mut libc::c_char,
-            buf.len(),
-            cf.as_ptr(),
-            &tm,
-        );
-        buf.truncate(n);
-        String::from_utf8_lossy(&buf).into_owned()
-    }
+    strftime::strftime(fmt, &strftime::from_epoch(t, false), None)
 }
 
 fn now_secs() -> i64 {
@@ -34,12 +20,6 @@ fn now_secs() -> i64 {
 fn date_offset() {
     // local $ENV{TZ} = 'GMT'
     std::env::set_var("TZ", "GMT");
-    extern "C" {
-        fn tzset();
-    }
-    unsafe {
-        tzset();
-    }
     // check_tz(): the DATA expects +0000 for local 2001-09-30 12:59
     assert_eq!(
         strftime_local("%z", 1001854740),

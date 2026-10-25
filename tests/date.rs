@@ -2,52 +2,20 @@ mod common;
 use common::*;
 use template_toolkit::{
     error::{ControlFlow, TemplateException},
+    strftime,
     value::Value,
     Template,
 };
 
 const FORMAT_DEFAULT: &str = "%H:%M:%S %d-%b-%Y";
 
+// Stand-ins for POSIX::strftime/mktime/localtime from the upstream test.
 fn strftime_local(fmt: &str, t: i64) -> String {
-    use std::ffi::CString;
-    unsafe {
-        let tt: libc::time_t = t as libc::time_t;
-        let mut tm: libc::tm = std::mem::zeroed();
-        libc::localtime_r(&tt, &mut tm);
-        let cf = CString::new(fmt).unwrap();
-        let mut buf = vec![0u8; 512];
-        let n = libc::strftime(
-            buf.as_mut_ptr() as *mut libc::c_char,
-            buf.len(),
-            cf.as_ptr(),
-            &tm,
-        );
-        buf.truncate(n);
-        String::from_utf8_lossy(&buf).into_owned()
-    }
+    strftime::strftime(fmt, &strftime::from_epoch(t, false), None)
 }
 
 fn time_locale(t: i64, fmt: &str, locale: &str) -> String {
-    use std::ffi::{CStr, CString};
-    unsafe {
-        let old = libc::setlocale(libc::LC_ALL, std::ptr::null());
-        let old = if old.is_null() {
-            None
-        } else {
-            Some(CStr::from_ptr(old).to_owned())
-        };
-        for suffix in ["", ".UTF-8", ".utf8", ".ISO-8859-1", ".iso88591"] {
-            let l = CString::new(format!("{}{}", locale, suffix)).unwrap();
-            if !libc::setlocale(libc::LC_ALL, l.as_ptr()).is_null() {
-                break;
-            }
-        }
-        let s = strftime_local(fmt, t);
-        if let Some(o) = old {
-            libc::setlocale(libc::LC_ALL, o.as_ptr());
-        }
-        s
-    }
+    strftime::strftime(fmt, &strftime::from_epoch(t, false), Some(locale))
 }
 
 fn date_locale(t: &str, fmt: &str, locale: &str) -> Result<String, TemplateException> {
@@ -59,18 +27,8 @@ fn date_locale(t: &str, fmt: &str, locale: &str) -> Result<String, TemplateExcep
         ));
     }
     let n: Vec<i32> = parts.iter().map(|p| p.parse().unwrap_or(0)).collect();
-    unsafe {
-        let mut tm: libc::tm = std::mem::zeroed();
-        tm.tm_sec = n[2];
-        tm.tm_min = n[1];
-        tm.tm_hour = n[0];
-        tm.tm_mday = n[3];
-        tm.tm_mon = n[4] - 1;
-        tm.tm_year = n[5] - 1900;
-        tm.tm_isdst = -1;
-        let ts = libc::mktime(&mut tm) as i64;
-        Ok(time_locale(ts, fmt, locale))
-    }
+    let tm = strftime::mktime_local(n[5], n[4], n[3], n[0], n[1], n[2]).unwrap();
+    Ok(strftime::strftime(fmt, &tm, Some(locale)))
 }
 
 fn now_secs() -> i64 {
