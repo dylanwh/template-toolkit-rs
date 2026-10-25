@@ -1,0 +1,19 @@
+[% USE wrap -%]
+[% text = "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!" -%]
+[% FOREACH w IN [10, 20, 33, 72] -%]
+--[% w %]--
+[% wrap(text, w) %]
+[% wrap(text, w, '  * ', '    ') %]
+[% END -%]
+[% FILTER wrap(30, '> ', '> ') %]
+Paragraph one has	a tab and   several   spaces inside it.
+
+
+Paragraph two follows two blank lines and ends with spaces.   
+[% END %]
+[% wrap('Supercalifragilisticexpialidocious-and-more-hyphenated-words here', 15) %]
+[% wrap("short", 40) %]|
+[% wrap("line one\nline two that is a bit longer than the width\n\nafter blank", 20, '', "\t") %]
+[% wrap("crlf line\r\nnext line", 8) %]
+[%+ wrap("   leading spaces then words", 12) %]|
+[% wrap("trailing newlines\n\n\n", 30) %]|

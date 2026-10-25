@@ -1,0 +1,12 @@
+[% name = 'World' -%]
+Hello [% name %]!
+[% x = 10; y = 3 -%]
+x+y=[% x + y %] x-y=[% x - y %] x*y=[% x * y %] x/y=[% x / y %] x div y=[% x div y %] x mod y=[% x mod y %]
+[% IF x > y %]bigger[% ELSIF x == y %]same[% ELSE %]smaller[% END %]
+[% UNLESS 0 %]unless ok[% END %]
+[% "interpolated $name and ${name}s" %]
+[% 'single $name' %]
+[% x > 5 ? 'big' : 'small' %]
+[% 1 + 2 * 3 %] [% (1 + 2) * 3 %] [% 7 % 3 %] [% -5 + 2 %]
+[% a = 0; b = '' -%]
+[% a || 'default' %] [% b or 'empty' %] [% (a && b) ? 'y' : 'n' %] [% NOT a %]

@@ -2150,61 +2150,128 @@ fn load_view_plugin(args: &[Value], context: &Context) -> Result<Value, Template
 // 15. Wrap Plugin
 // ============================================================================
 
-pub fn tt_wrap_text(text: &str, width: usize, init_tab: &str, subseq_tab: &str) -> String {
-    let mut out_lines = Vec::new();
-    let input_lines: Vec<&str> = text.split('\n').collect();
+const WRAP_TABSTOP: usize = 8;
 
-    for (line_idx, raw_line) in input_lines.iter().enumerate() {
-        let mut prefix = if line_idx == 0 { init_tab } else { subseq_tab };
-        let mut rem = *raw_line;
-
-        loop {
-            let max_chars = width.saturating_sub(prefix.chars().count() + 1);
-            let rem_chars: Vec<char> = rem.chars().collect();
-            if rem_chars.len() <= max_chars || max_chars == 0 {
-                out_lines.push(format!("{}{}", prefix, rem));
-                break;
+/// `Text::Tabs::expand` for a single string.
+fn tabs_expand(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut col = 0;
+    for c in text.chars() {
+        match c {
+            '\t' => {
+                let pad = WRAP_TABSTOP - col % WRAP_TABSTOP;
+                out.extend(std::iter::repeat_n(' ', pad));
+                col += pad;
             }
-
-            // Find last whitespace at or before max_chars
-            let mut break_char_idx: Option<usize> = None;
-            for idx in (0..=max_chars).rev() {
-                if rem_chars[idx].is_whitespace() {
-                    break_char_idx = Some(idx);
-                    break;
-                }
+            '\n' => {
+                out.push(c);
+                col = 0;
             }
-
-            if let Some(b_idx) = break_char_idx {
-                let seg: String = rem_chars[..b_idx].iter().collect();
-                out_lines.push(format!("{}{}", prefix, seg));
-                // Skip single whitespace character (like Text::Wrap)
-                let next_start = b_idx + 1;
-                rem = &rem[rem_chars[..next_start]
-                    .iter()
-                    .map(|c| c.len_utf8())
-                    .sum::<usize>()..];
-                prefix = subseq_tab;
-            } else {
-                // Single word longer than max_chars: break at next whitespace or end
-                if let Some(ws_idx) = rem_chars.iter().position(|c| c.is_whitespace()) {
-                    let seg: String = rem_chars[..ws_idx].iter().collect();
-                    out_lines.push(format!("{}{}", prefix, seg));
-                    let next_start = ws_idx + 1;
-                    rem = &rem[rem_chars[..next_start]
-                        .iter()
-                        .map(|c| c.len_utf8())
-                        .sum::<usize>()..];
-                    prefix = subseq_tab;
-                } else {
-                    out_lines.push(format!("{}{}", prefix, rem));
-                    break;
-                }
+            _ => {
+                out.push(c);
+                col += 1;
             }
         }
     }
+    out
+}
 
-    out_lines.join("\n")
+/// `Text::Tabs::unexpand`: within each full tabstop-wide chunk of a line, a
+/// trailing run of two or more spaces becomes a tab.
+fn tabs_unexpand(text: &str) -> String {
+    text.split('\n')
+        .map(|line| {
+            let chars: Vec<char> = tabs_expand(line).chars().collect();
+            let full = chars.len() / WRAP_TABSTOP * WRAP_TABSTOP;
+            let mut out = String::new();
+            for chunk in chars[..full].chunks(WRAP_TABSTOP) {
+                let trailing = chunk.iter().rev().take_while(|&&c| c == ' ').count();
+                let keep = if trailing >= 2 {
+                    chunk.len() - trailing
+                } else {
+                    chunk.len()
+                };
+                out.extend(&chunk[..keep]);
+                if keep < chunk.len() {
+                    out.push('\t');
+                }
+            }
+            out.extend(&chars[full..]);
+            out
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Port of `Text::Wrap::wrap($init_tab, $subseq_tab, $text)` with the module
+/// defaults Template::Plugin::Wrap uses: `$huge = 'wrap'`, `$unexpand = 1`,
+/// `$tabstop = 8`, `$separator = "\n"`, and `$break` matching any single
+/// whitespace character (or `\r\n`).
+pub fn tt_wrap_text(text: &str, width: usize, init_tab: &str, subseq_tab: &str) -> String {
+    let t: Vec<char> = tabs_expand(text).chars().collect();
+    let xlen = |s: &str| tabs_expand(s).chars().count();
+    let mut columns = width;
+    let mut nll = columns as isize - xlen(subseq_tab) as isize - 1;
+    if nll <= 0 && !subseq_tab.is_empty() {
+        columns = xlen(subseq_tab) + 2;
+        nll = 1;
+    }
+    let nll = nll.max(0) as usize;
+    let mut ll = (columns as isize - xlen(init_tab) as isize - 1).max(0) as usize;
+
+    let mut r = String::new();
+    let mut lead = init_tab;
+    let mut nl = "";
+    let mut remainder = String::new();
+    let mut pos = 0;
+    let emit = |r: &mut String, nl: &str, lead: &str, seg: &[char]| {
+        let line: String = nl
+            .chars()
+            .chain(lead.chars())
+            .chain(seg.iter().copied())
+            .collect();
+        r.push_str(&tabs_unexpand(&line));
+    };
+
+    // while ($t !~ /\G(?:$break)*\Z/gc)
+    while !t[pos..].iter().all(|c| c.is_whitespace()) {
+        // Characters available before the next newline.
+        let avail = t[pos..]
+            .iter()
+            .position(|&c| c == '\n')
+            .unwrap_or(t.len() - pos);
+        // /\G((?:(?!\n).){0,$ll})($break|\n+|\z)/: longest segment followed
+        // by whitespace or end of text.
+        let fit = (0..=ll.min(avail))
+            .rev()
+            .find(|&k| pos + k == t.len() || t[pos + k].is_whitespace());
+        if let Some(k) = fit {
+            emit(&mut r, nl, lead, &t[pos..pos + k]);
+            let d = pos + k;
+            let dlen = match (t.get(d), t.get(d + 1)) {
+                (None, _) => 0,
+                (Some('\r'), Some('\n')) => 2,
+                _ => 1,
+            };
+            remainder = t[d..d + dlen].iter().collect();
+            pos = d + dlen;
+        } else if ll > 0 && avail >= ll {
+            // $huge eq 'wrap': hard-break a word longer than the line.
+            emit(&mut r, nl, lead, &t[pos..pos + ll]);
+            remainder = "\n".to_string();
+            pos += ll;
+        } else {
+            // Perl gives up here ($columns < 2); emit the rest unwrapped.
+            emit(&mut r, nl, lead, &t[pos..]);
+            remainder.clear();
+            break;
+        }
+        lead = subseq_tab;
+        ll = nll;
+        nl = "\n";
+    }
+    r.push_str(&remainder);
+    r
 }
 
 fn load_wrap_plugin(context: &Context) -> Value {

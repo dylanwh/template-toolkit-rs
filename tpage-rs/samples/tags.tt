@@ -1,0 +1,4 @@
+[% TAGS star %]
+[* x = 'star' *][* x *] [% not a tag %]
+[* TAGS html *]
+<!-- y = 'html' --><!-- y -->

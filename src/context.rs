@@ -7,8 +7,8 @@ use std::{
 
 use crate::{
     constants::{
-        DEBUG_DIRS, DEBUG_UNDEF, ERROR_FILE, ERROR_FILTER, ERROR_PERL, ERROR_PLUGIN, ERROR_RETURN,
-        ERROR_UNDEF, ERROR_VIEW, STATUS_DONE,
+        DEBUG_DIRS, DEBUG_UNDEF, ERROR_FILE, ERROR_PERL, ERROR_PLUGIN, ERROR_RETURN, ERROR_UNDEF,
+        ERROR_VIEW, STATUS_DONE,
     },
     document::Document,
     error::{ControlFlow, TemplateException},
@@ -518,9 +518,11 @@ impl Context {
         }
 
         // Also check if `name` is a Value::Function in stash or filter_cache?
+        // Perl sets a plain-string error here, which the FILTER directive
+        // rethrows via `$context->throw`, so the exception type is 'undef'.
         let Some(f) = found_filter else {
             return Err(ControlFlow::Exception(TemplateException::new(
-                ERROR_FILTER,
+                ERROR_UNDEF,
                 format!("{}: filter not found", name),
             )));
         };

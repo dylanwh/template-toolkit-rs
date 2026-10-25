@@ -1,0 +1,11 @@
+[package]
+name = "tpage-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of the tpage command from Perl's Template::Toolkit"
+
+[dependencies]
+template-toolkit = { path = ".." }
+clap = { version = "4.6", features = ["derive"] }
+color-eyre = "0.6.5"
+similar = "3.2.0"

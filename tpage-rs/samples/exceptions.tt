@@ -1,0 +1,5 @@
+[% TRY %][% THROW myerr 'custom failure' %][% CATCH myerr %]caught [% error.type %]: [% error.info %][% END %]
+[% TRY %][% INCLUDE no_such_file.tt %][% CATCH file %]file error caught[% END %]
+[% TRY %][% x = 1 / 0 %][% CATCH %]div: [% error.type %][% END %]
+[% TRY %]before [% THROW a.b 'nested' %] after[% CATCH a %]caught a ([% error.type %])[% FINAL %] finally[% END %]
+[% TRY %][% TRY %][% THROW inner 'x' %][% CATCH inner %][% THROW outer 'rethrown' %][% END %][% CATCH outer %][% error.info %][% END %]

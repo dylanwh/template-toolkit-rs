@@ -1,0 +1,12 @@
+Line one
+[%- 'pre-chomped' %]
+[% 'post-chomped' -%]
+Line four
+[%~ 'greedy' ~%]
+
+Line six
+[%= 'collapse' =%]
+end
+[%# a comment %]after comment
+[% # another comment
+%]x

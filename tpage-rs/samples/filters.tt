@@ -1,0 +1,10 @@
+[% '<a href="x">&</a>' | html %]
+[% 'hello world' | upper %] [% 'HELLO' | lower %] [% 'hello' | ucfirst %]
+[% 'a b c' | replace(' ', '_') %] [% 'x y' | uri %] [% "  padded  " | trim %]
+[% FILTER indent(4) %]line one
+line two[% END %]
+[% 'abc' | repeat(2) %] [% 'one two three four five six' | truncate(12) %]
+[% "line1\nline2" | html_para %]
+[% FILTER format('<%s>') %]x[% END %]
+[% 'Hello' | remove('l') %] [% FILTER null %]gone[% END %]done
+[% text = 'The cat sat on the mat' %][% text | html_entity %]
