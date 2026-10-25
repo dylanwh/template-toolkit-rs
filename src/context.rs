@@ -7,35 +7,43 @@ use std::{
 
 use crate::{
     constants::{
-        DEBUG_CONTEXT, DEBUG_DIRS, DEBUG_FLAGS, DEBUG_UNDEF, ERROR_FILE, ERROR_FILTER, ERROR_PERL,
-        ERROR_PLUGIN, ERROR_RETURN, ERROR_UNDEF, ERROR_VIEW, STATUS_DONE,
+        DEBUG_DIRS, DEBUG_UNDEF, ERROR_FILE, ERROR_FILTER, ERROR_PERL, ERROR_PLUGIN, ERROR_RETURN,
+        ERROR_UNDEF, ERROR_VIEW, STATUS_DONE,
     },
     document::Document,
     error::{ControlFlow, TemplateException},
-    filters::{FilterDef, FilterFn, FilterLookup, Filters},
+    filters::{FilterDef, FilterFn, Filters},
     iterator::TemplateIterator,
     parser::{
-        ast::{ArgsSpec, AssignTarget, BinOp, Block, Expr, IdentNode, NamedArg, SpannedStmt, Stmt},
+        ast::{AssignTarget, BinOp, Block, Expr, IdentNode, NamedArg, SpannedStmt, Stmt},
         Parser,
     },
     plugins::{load_builtin_plugin, PluginFactory},
     provider::{FetchResult, LoadResult, Provider},
     stash::Stash,
-    value::{format_perl_float, CallContext, Callable, MethodResult, Value},
+    value::{format_perl_float, CallContext, Callable, Value},
     view::View,
     vmethods::VMethodFn,
 };
 
 pub const DEFAULT_DEBUG_FORMAT: &str = "\n## $file line $line : [% $text %] ##\n";
 pub const WHILE_MAX: usize = 1000;
+static WHILE_MAX_CUR: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(WHILE_MAX);
+
+/// Equivalent of `$Template::Directive::WHILE_MAX`.
+pub fn set_while_max(n: usize) {
+    WHILE_MAX_CUR.store(n, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn get_while_max() -> usize {
+    WHILE_MAX_CUR.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 #[derive(Clone)]
 pub enum CompiledTemplate {
     Document(Rc<Document>),
-    Closure {
-        name: String,
-        func: Rc<dyn Fn(&Context) -> Result<String, ControlFlow>>,
-    },
+    Closure { name: String, func: BlockFn },
 }
 
 impl std::fmt::Debug for CompiledTemplate {
@@ -49,11 +57,14 @@ impl std::fmt::Debug for CompiledTemplate {
     }
 }
 
+/// A native block body: renders output given the current context.
+pub type BlockFn = Rc<dyn Fn(&Context) -> Result<String, ControlFlow>>;
+
 #[derive(Clone)]
 pub enum BlockDef {
     Text(String),
     Document(Rc<Document>),
-    Closure(Rc<dyn Fn(&Context) -> Result<String, ControlFlow>>),
+    Closure(BlockFn),
 }
 
 impl From<&str> for BlockDef {
@@ -108,7 +119,6 @@ struct ContextInner {
     expose_blocks: bool,
     debug_format: Option<String>,
     debug_dirs: bool,
-    debug_flags: u32,
     current_line: String,
     current_file: String,
     current_from_compiled: bool,
@@ -116,7 +126,7 @@ struct ContextInner {
 
 #[bon::bon]
 impl Context {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         load_templates: Option<Vec<Rc<RefCell<Provider>>>>,
         prefix_map: Option<HashMap<String, Vec<Rc<RefCell<Provider>>>>>,
@@ -135,8 +145,14 @@ impl Context {
         #[builder(default = 0)] debug: u32,
         #[builder(default = false)] strict: bool,
     ) -> Result<Self, TemplateException> {
-        let providers = load_templates
-            .unwrap_or_else(|| vec![Rc::new(RefCell::new(Provider::builder().build()))]);
+        let providers = match load_templates {
+            Some(p) => p,
+            None => vec![Rc::new(RefCell::new(
+                Provider::builder()
+                    .build()
+                    .map_err(|e| TemplateException::new("file", e))?,
+            ))],
+        };
         let filters = load_filters.unwrap_or_else(|| vec![Rc::new(RefCell::new(Filters::new()))]);
         let stash_obj = match stash {
             Some(mut s) => {
@@ -176,7 +192,6 @@ impl Context {
                 expose_blocks,
                 debug_format,
                 debug_dirs: (debug & DEBUG_DIRS) != 0,
-                debug_flags: debug & (DEBUG_CONTEXT | DEBUG_FLAGS),
                 current_line: "1".to_string(),
                 current_file: "input text".to_string(),
                 current_from_compiled: false,
@@ -261,10 +276,15 @@ impl Context {
     pub fn compile_text(&self, text: &str) -> Result<Rc<Document>, TemplateException> {
         let providers = self.inner.borrow().load_templates.clone();
         for prov in providers {
-            match prov.borrow().fetch_text(text) {
+            match prov.borrow().fetch_text(text, None) {
                 FetchResult::Ok(doc) => return Ok(doc),
                 FetchResult::Declined => continue,
-                FetchResult::Error(e) => return Err(e),
+                FetchResult::Error(e) => {
+                    if e.type_ == ERROR_FILE {
+                        return Err(e);
+                    }
+                    return Err(TemplateException::new(ERROR_FILE, e.to_string()));
+                }
             }
         }
         let mut parser = Parser::new();
@@ -341,7 +361,7 @@ impl Context {
 
         while !shortname.is_empty() {
             for provider in &providers {
-                let res = provider.borrow().fetch(&shortname, prefix.as_deref());
+                let res = provider.borrow().fetch(&shortname);
                 match res {
                     FetchResult::Ok(doc) => {
                         if !blockname.is_empty() {
@@ -356,7 +376,13 @@ impl Context {
                         }
                     }
                     FetchResult::Declined => continue,
-                    FetchResult::Error(err) => return Err(err),
+                    FetchResult::Error(err) => {
+                        if err.type_ == ERROR_FILE {
+                            return Err(err);
+                        }
+                        let msg = err.to_string();
+                        return Err(TemplateException::new(ERROR_FILE, msg));
+                    }
                 }
             }
 
@@ -425,7 +451,7 @@ impl Context {
             })
         };
         if let Some(factory) = custom_factory {
-            return factory.create(args, self);
+            return factory.load(self, args);
         }
 
         // 2. Builtin plugins
@@ -482,12 +508,12 @@ impl Context {
         for prov in providers {
             let res = prov.borrow().fetch(name, arg_slice);
             match res {
-                FilterLookup::Ok(f) => {
+                Ok(Some(f)) => {
                     found_filter = Some(f);
                     break;
                 }
-                FilterLookup::Declined => continue,
-                FilterLookup::Error(e) => return Err(ControlFlow::Exception(e)),
+                Ok(None) => continue,
+                Err(e) => return Err(ControlFlow::Exception(e)),
             }
         }
 
@@ -534,7 +560,14 @@ impl Context {
     }
 
     pub fn define_vmethod(&self, vtype: &str, name: &str, f: VMethodFn) {
-        self.inner.borrow_mut().stash.define_vmethod(vtype, name, f);
+        let inner = self.inner.borrow();
+        if let Some(vm) = &inner.stash.vmethods {
+            vm.borrow_mut().define_vmethod(vtype, name, f);
+        } else {
+            // no per-stash registry: fall back to the global ops tables
+            // (cf. $Template::Stash::LIST_OPS etc.)
+            crate::vmethods::define_global_vmethod(vtype, name, f);
+        }
     }
 
     pub fn view(&self, params: HashMap<String, Value>) -> Result<View, TemplateException> {
@@ -548,7 +581,10 @@ impl Context {
     ) -> Result<View, TemplateException> {
         if let Some(base_val) = params.get("base").cloned() {
             if matches!(base_val, Value::Str(_)) {
-                let resolved = self.stash().get(&base_val).unwrap_or(Value::Undefined);
+                let resolved = self
+                    .stash()
+                    .get(&base_val, None)
+                    .unwrap_or(Value::Undefined);
                 if !resolved.is_truthy() {
                     return Err(TemplateException::new(
                         ERROR_VIEW,
@@ -754,7 +790,7 @@ impl Context {
         let run_result: Result<String, ControlFlow> = (|| {
             let mut output = String::new();
             let prev_component = stash
-                .get(&Value::Str("component".to_string()))
+                .get(&Value::Str("component".to_string()), None)
                 .unwrap_or(Value::Undefined);
 
             for compiled in compiled_list {
@@ -895,7 +931,7 @@ impl Context {
 
             let mut loaded_text: Option<String> = None;
             for prov in providers {
-                match prov.borrow().load(&name, prefix.as_deref()) {
+                match prov.borrow().load(&name) {
                     LoadResult::Ok(txt) => {
                         loaded_text = Some(txt);
                         break;
@@ -920,7 +956,7 @@ impl Context {
     }
 
     pub fn eval_document(&self, doc: &Rc<Document>) -> Result<String, ControlFlow> {
-        if doc.hot.get() && !self.recursion() {
+        if doc.hot.get() && !doc.is_block && !self.recursion() {
             return Err(ControlFlow::Exception(TemplateException::new(
                 ERROR_FILE,
                 format!("recursion into '{}'", doc.name()),
@@ -1087,6 +1123,12 @@ impl Context {
                     Value::Undefined
                 };
 
+                // Rethrow an exception held in an object wrapper (e.g. `THROW error`)
+                if let Value::Object(o) = &type_val {
+                    if let Some(ex) = o.as_any().downcast_ref::<TemplateException>() {
+                        return Err(ControlFlow::Exception(ex.clone()));
+                    }
+                }
                 // If throwing an existing TemplateException object directly
                 if let Value::Exception(ex_rc) = &type_val {
                     let mut ex = ex_rc.borrow().clone();
@@ -1200,15 +1242,24 @@ impl Context {
                     None => None,
                 };
 
-                let filter_fn = self.filter(
-                    &filter_name,
-                    if pos_vals.is_empty() {
-                        None
-                    } else {
-                        Some(&pos_vals)
-                    },
-                    alias_str.as_deref(),
-                )?;
+                // A code ref used as FILTER $var is already a filter (Filters::fetch).
+                let filter_fn: FilterFn = if let Value::Function(func) = &name_val {
+                    let func = Rc::clone(func);
+                    Rc::new(move |text: &str| {
+                        func.call(&[Value::Str(text.to_string())], CallContext::Scalar)
+                            .map(|v| v.to_tt_string())
+                    })
+                } else {
+                    self.filter(
+                        &filter_name,
+                        if pos_vals.is_empty() {
+                            None
+                        } else {
+                            Some(&pos_vals)
+                        },
+                        alias_str.as_deref(),
+                    )?
+                };
 
                 let mut sub_output = String::new();
                 self.eval_block(block, &mut sub_output)?;
@@ -1279,13 +1330,13 @@ impl Context {
                 let my_label = label.as_deref().unwrap_or("LOOP");
 
                 let old_loop = if loop_var.is_some() {
-                    self.stash().get(&Value::Str("loop".to_string())).ok()
+                    self.stash().get(&Value::Str("loop".to_string()), None).ok()
                 } else {
                     self.localise(None);
                     None
                 };
 
-                let stash = self.stash();
+                let mut stash = self.stash();
                 let _ = stash.set(
                     &Value::Str("loop".to_string()),
                     Value::Object(Rc::clone(&iter_rc) as Rc<dyn crate::value::TemplateObject>),
@@ -1351,7 +1402,8 @@ impl Context {
             }
             Stmt::While { expr, block, label } => {
                 let my_label = label.as_deref().unwrap_or("LOOP");
-                let mut failsafe = WHILE_MAX as isize;
+                let while_max = get_while_max();
+                let mut failsafe = while_max as isize;
 
                 loop {
                     let cond = self.eval_expr(expr)?;
@@ -1381,7 +1433,7 @@ impl Context {
                 if failsafe < 0 {
                     return Err(ControlFlow::Exception(TemplateException::new(
                         ERROR_UNDEF,
-                        format!("WHILE loop terminated (> {} iterations)\n", WHILE_MAX),
+                        format!("WHILE loop terminated (> {} iterations)\n", while_max),
                     )));
                 }
 
@@ -1401,6 +1453,7 @@ impl Context {
                         return Err(ControlFlow::Exception(ex));
                     }
 
+                    let caught_text = ex.text.clone();
                     let ex_val = Value::from(ex.clone());
                     let stash = self.stash();
                     let _ = stash.set(&Value::Str("error".to_string()), ex_val.clone(), false);
@@ -1431,7 +1484,14 @@ impl Context {
                         };
 
                     if let Some(cblk) = chosen_block {
-                        if let Err(catch_cf) = self.eval_block(cblk, &mut try_output) {
+                        if let Err(mut catch_cf) = self.eval_block(cblk, &mut try_output) {
+                            // A rethrown caught exception shares its text buffer with
+                            // `try_output` in Perl, so it must not be appended again.
+                            if let ControlFlow::Exception(ref mut e) = catch_cf {
+                                if !e.text.is_empty() && e.text == caught_text {
+                                    e.text = String::new();
+                                }
+                            }
                             let new_ex = self.catch_control_flow(catch_cf, &mut try_output)?;
                             active_error = Some(new_ex);
                         }
@@ -1520,7 +1580,7 @@ impl Context {
 
                 let stash = self.stash();
                 let old_view = stash
-                    .get(&Value::Str("view".to_string()))
+                    .get(&Value::Str("view".to_string()), None)
                     .unwrap_or(Value::Undefined);
                 let view_obj = self.view(config).map_err(ControlFlow::Exception)?;
                 let view_val = Value::Object(
@@ -1694,7 +1754,7 @@ impl Context {
                 let stash = self.stash();
                 if nodes.len() == 1 && nodes[0].args.is_none() {
                     let k = self.eval_expr(&nodes[0].key)?;
-                    stash.get(&k)
+                    stash.get(&k, None)
                 } else {
                     let pairs = self.eval_ident_pairs(nodes)?;
                     stash.get_pairs(&pairs, None)
@@ -1737,6 +1797,7 @@ impl Context {
                 }
                 Ok(Value::from_hash(map))
             }
+            Expr::Paren(inner) => self.eval_expr(inner),
             Expr::Not(inner) => {
                 let v = self.eval_expr(inner)?;
                 if v.is_truthy() {

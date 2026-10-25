@@ -181,6 +181,8 @@ pub enum Expr {
         right: Box<Expr>,
     },
     Not(Box<Expr>),
+    /// Parenthesised expression (transparent at evaluation time).
+    Paren(Box<Expr>),
     Ternary {
         cond: Box<Expr>,
         then_expr: Box<Expr>,

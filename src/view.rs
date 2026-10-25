@@ -243,14 +243,9 @@ impl View {
             }
         }
 
-        let base = if let Some(b_val) = overrides.remove("base") {
-            if let Value::Object(obj) = b_val {
-                obj.as_any().downcast_ref::<View>().cloned()
-            } else {
-                cur.base.clone()
-            }
-        } else {
-            cur.base.clone()
+        let base = match overrides.remove("base") {
+            Some(Value::Object(obj)) => obj.as_any().downcast_ref::<View>().cloned(),
+            _ => cur.base.clone(),
         };
 
         let prefix = overrides
@@ -381,7 +376,7 @@ impl View {
 
         Err(ControlFlow::Exception(TemplateException::new(
             "view",
-            first_err.info.to_tt_string(),
+            first_err.as_string(),
         )))
     }
 
@@ -424,7 +419,8 @@ impl View {
 
         let (method, map_snapshot) = {
             let inner = self.inner.borrow();
-            (inner.method.clone(), inner.map.borrow().clone())
+            let map = inner.map.borrow().clone();
+            (inner.method.clone(), map)
         };
 
         let mut output = String::new();
@@ -447,7 +443,8 @@ impl View {
             } else {
                 // Check if object implements `method` (e.g. `present`)
                 if let Value::Object(obj) = item {
-                    if !method.is_empty() {
+                    // Template::View only has AUTOLOAD for these, which UNIVERSAL::can() ignores
+                    if !method.is_empty() && !obj.as_any().is::<View>() {
                         let view_val = Value::Object(Rc::new(self.clone()));
                         match obj.call_method(&method, &[view_val], CallContext::Scalar) {
                             MethodResult::Ok(res) => {

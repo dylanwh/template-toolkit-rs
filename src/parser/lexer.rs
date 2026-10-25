@@ -423,11 +423,12 @@ pub fn tokenise_directive(text: &str, anycase: bool) -> Vec<(String, String)> {
             let mut end_pos = pos + 1;
             let mut closed = false;
             while end_pos < bytes.len() {
-                if bytes[end_pos] == b'\\' && end_pos + 1 < bytes.len() {
-                    if bytes[end_pos + 1] == b'\\' || bytes[end_pos + 1] == quote {
-                        end_pos += 2;
-                        continue;
-                    }
+                if bytes[end_pos] == b'\\'
+                    && end_pos + 1 < bytes.len()
+                    && (bytes[end_pos + 1] == b'\\' || bytes[end_pos + 1] == quote)
+                {
+                    end_pos += 2;
+                    continue;
                 }
                 if bytes[end_pos] == quote {
                     closed = true;

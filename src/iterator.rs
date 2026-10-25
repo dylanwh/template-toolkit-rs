@@ -25,7 +25,8 @@ struct IteratorState {
 impl TemplateIterator {
     pub fn new(target: &Value) -> Self {
         let data = match target {
-            Value::Undefined => Vec::new(),
+            // Perl: `my $data = shift || [ ];`
+            v if !v.is_truthy() => Vec::new(),
             Value::List(l) => l.borrow().clone(),
             Value::Hash(h) => {
                 let borrow = h.borrow();
@@ -196,7 +197,7 @@ impl TemplateIterator {
     }
 
     pub fn even(&self) -> i64 {
-        if self.state.borrow().count % 2 == 0 {
+        if self.state.borrow().count.is_multiple_of(2) {
             1
         } else {
             0

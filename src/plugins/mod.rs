@@ -15,8 +15,7 @@ use crate::{
     error::{ControlFlow, TemplateException},
     filters::{html_filter, perl_sprintf, uri_filter, url_filter, FilterDef, FilterFn},
     iterator::TemplateIterator,
-    stash::Stash,
-    value::{format_perl_float, CallContext, Callable, MethodResult, TemplateObject, Value},
+    value::{format_perl_float, CallContext, MethodResult, TemplateObject, Value},
     view::View,
     vmethods::{vmethod_scalar_split, vmethod_scalar_substr, GLOBAL_VMETHODS},
 };
@@ -46,6 +45,7 @@ pub fn load_builtin_plugin(
     match lower.as_str() {
         "assert" => Ok(Some(load_assert_plugin(context))),
         "scalar" => Ok(Some(load_scalar_plugin(context))),
+        "cgi" => Ok(Some(load_cgi_plugin(args))),
         "datafile" => load_datafile_plugin(args).map(Some),
         "date" => Ok(Some(load_date_plugin(args))),
         "directory" => load_directory_plugin(args, context).map(Some),
@@ -90,27 +90,16 @@ impl TemplateObject for AssertMonad {
     }
 
     fn call_method(&self, method: &str, args: &[Value], _ctx: CallContext) -> MethodResult {
-        let stash = self
-            .context
-            .as_ref()
-            .map(|c| c.stash())
-            .unwrap_or_else(Stash::default);
+        let stash = self.context.as_ref().map(|c| c.stash()).unwrap_or_default();
         let item_val = Value::Str(method.to_string());
         let res = if let Some(ref target) = self.target {
             stash.dotop(target, &item_val, args, false)
         } else {
-            stash.get_pairs(&[(item_val, args.to_vec())], None)
+            stash.dotop_at_root(&item_val, args)
         };
         match res {
             Ok(v) => {
-                if !v.is_defined()
-                    || (self.target.is_none()
-                        && matches!(&v, Value::Str(s) if s.is_empty())
-                        && stash
-                            .get_raw(method)
-                            .map(|rv| !rv.is_defined())
-                            .unwrap_or(true))
-                {
+                if !v.is_defined() {
                     MethodResult::Err(ControlFlow::Exception(TemplateException::new(
                         "assert",
                         format!("undefined value for {}", method),
@@ -135,6 +124,119 @@ fn load_assert_plugin(context: &Context) -> Value {
         target: None,
         context: Some(context.clone()),
     }))
+}
+
+// ----------------------------------------------------------------------------
+// CGI Plugin (minimal: query-string parsing, param(), params())
+// ----------------------------------------------------------------------------
+
+fn cgi_unescape(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'+' => out.push(b' '),
+            b'%' if i + 2 < b.len() => {
+                let h = std::str::from_utf8(&b[i + 1..i + 3])
+                    .ok()
+                    .and_then(|h| u8::from_str_radix(h, 16).ok());
+                if let Some(v) = h {
+                    out.push(v);
+                    i += 2;
+                } else {
+                    out.push(b'%');
+                }
+            }
+            c => out.push(c),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+struct CgiObject {
+    params: Vec<(String, Vec<String>)>,
+}
+
+// Perl method calls in list context return a list; TT collapses a one-element
+// list to the element itself and a longer one to a list reference.
+fn cgi_list_result(vals: Vec<String>) -> Value {
+    match vals.len() {
+        0 => Value::Undefined,
+        1 => Value::Str(vals.into_iter().next().unwrap()),
+        _ => Value::from_list(vals.into_iter().map(Value::Str).collect()),
+    }
+}
+
+impl TemplateObject for CgiObject {
+    fn type_name(&self) -> &str {
+        "CGI"
+    }
+
+    // CGI objects are blessed hashes in Perl, so hash vmethods (including
+    // the `scalar` vmethod) apply to them.
+    fn as_hash(&self) -> Option<Rc<RefCell<HashMap<String, Value>>>> {
+        Some(Rc::new(RefCell::new(HashMap::new())))
+    }
+
+    fn call_method(&self, method: &str, args: &[Value], ctx: CallContext) -> MethodResult {
+        match method {
+            "param" => {
+                if let Some(name) = args.first().filter(|v| v.is_defined()) {
+                    let name = name.to_tt_string();
+                    match self.params.iter().find(|(k, _)| *k == name) {
+                        None => MethodResult::Ok(Value::Undefined),
+                        Some((_, vals)) => {
+                            if matches!(ctx, CallContext::List) {
+                                MethodResult::Ok(cgi_list_result(vals.clone()))
+                            } else {
+                                MethodResult::Ok(Value::Str(vals[0].clone()))
+                            }
+                        }
+                    }
+                } else {
+                    MethodResult::Ok(cgi_list_result(
+                        self.params.iter().map(|(k, _)| k.clone()).collect(),
+                    ))
+                }
+            }
+            "params" => {
+                let mut m = HashMap::new();
+                for (k, vals) in &self.params {
+                    let v = if vals.len() > 1 {
+                        Value::from_list(vals.iter().map(|v| Value::Str(v.clone())).collect())
+                    } else {
+                        Value::Str(vals.first().cloned().unwrap_or_default())
+                    };
+                    m.insert(k.clone(), v);
+                }
+                MethodResult::Ok(Value::from_hash(m))
+            }
+            _ => MethodResult::NotFound,
+        }
+    }
+}
+
+fn load_cgi_plugin(args: &[Value]) -> Value {
+    let query = args
+        .first()
+        .filter(|v| v.is_defined())
+        .map(|v| v.to_tt_string())
+        .unwrap_or_default();
+    let mut params: Vec<(String, Vec<String>)> = Vec::new();
+    for pair in query.split(['&', ';']).filter(|p| !p.is_empty()) {
+        let (k, v) = match pair.find('=') {
+            Some(i) => (&pair[..i], &pair[i + 1..]),
+            None => (pair, ""),
+        };
+        let (k, v) = (cgi_unescape(k), cgi_unescape(v));
+        match params.iter_mut().find(|(n, _)| *n == k) {
+            Some((_, vals)) => vals.push(v),
+            None => params.push((k, vec![v])),
+        }
+    }
+    Value::Object(Rc::new(CgiObject { params }))
 }
 
 // ============================================================================
@@ -735,7 +837,7 @@ impl DirectoryPlugin {
         if path_arg.is_empty() {
             return Err(TemplateException::new(
                 "Directory",
-                "No directory specified",
+                "no directory specified",
             ));
         }
         let fp = FilePlugin::create(path_arg, &config)
@@ -916,6 +1018,24 @@ impl TemplateObject for DirectoryPlugin {
                 }
                 MethodResult::Ok(Value::Str(String::new()))
             }
+            "content" => {
+                let view = match args.first() {
+                    Some(v) if v.is_truthy() => v.clone(),
+                    _ => return MethodResult::Ok(Value::List(Rc::clone(&self.list))),
+                };
+                let mut output = String::new();
+                let items: Vec<Value> = self.list.borrow().clone();
+                for item in items {
+                    if let Value::Object(o) = &item {
+                        match o.call_method("present", std::slice::from_ref(&view), ctx) {
+                            MethodResult::Ok(v) => output.push_str(&v.to_tt_string()),
+                            MethodResult::Err(e) => return MethodResult::Err(e),
+                            _ => {}
+                        }
+                    }
+                }
+                MethodResult::Ok(Value::Str(output))
+            }
             _ => self.file.call_method(method, args, ctx),
         }
     }
@@ -940,7 +1060,7 @@ fn load_directory_plugin(args: &[Value], _context: &Context) -> Result<Value, Te
 // ============================================================================
 
 fn make_formatter_fn(format_str: String) -> Value {
-    Value::from_fn(move |call_args, _| {
+    Value::function(move |call_args, _| {
         let effective_args = if call_args.is_empty() {
             vec![Value::Str(String::new())]
         } else {
@@ -954,7 +1074,7 @@ fn load_format_plugin(args: &[Value]) -> Value {
     if let Some(first) = args.first().filter(|v| v.is_defined()) {
         make_formatter_fn(first.to_tt_string())
     } else {
-        Value::from_fn(|call_args, _| {
+        Value::function(|call_args, _| {
             let fmt = call_args
                 .first()
                 .filter(|v| v.is_defined())
@@ -1264,7 +1384,10 @@ fn load_image_plugin(args: &[Value]) -> Result<Value, TemplateException> {
     let file = if !root.is_empty() {
         Path::new(&root).join(&name).to_string_lossy().into_owned()
     } else {
-        name.clone()
+        cfg.get("file")
+            .filter(|v| v.is_defined())
+            .map(|v| v.to_tt_string())
+            .unwrap_or_else(|| name.clone())
     };
 
     let alt = cfg
@@ -1370,10 +1493,13 @@ fn load_math_plugin() -> Value {
 // 11. String Plugin
 // ============================================================================
 
+/// Pending `filter(name, args)` calls recorded by the String plugin.
+type FilterChain = Vec<(String, Vec<Value>)>;
+
 #[derive(Clone)]
 pub struct StringPlugin {
     pub text: Rc<RefCell<String>>,
-    pub filters: Rc<RefCell<Vec<(String, Vec<Value>)>>>,
+    pub filters: Rc<RefCell<FilterChain>>,
     pub context: Context,
 }
 
@@ -1531,7 +1657,7 @@ impl TemplateObject for StringPlugin {
                     let pat = format!("{}$", strip.to_tt_string());
                     if let Ok(re) = regex::Regex::new(&pat) {
                         let mut t = self.text.borrow_mut();
-                        *t = re.replace(&*t, "").into_owned();
+                        *t = re.replace(&t, "").into_owned();
                     }
                 }
                 MethodResult::Ok(self.self_val())
@@ -1541,7 +1667,7 @@ impl TemplateObject for StringPlugin {
                     let pat = format!("^{}", strip.to_tt_string());
                     if let Ok(re) = regex::Regex::new(&pat) {
                         let mut t = self.text.borrow_mut();
-                        *t = re.replace(&*t, "").into_owned();
+                        *t = re.replace(&t, "").into_owned();
                     }
                 }
                 MethodResult::Ok(self.self_val())
@@ -1738,7 +1864,7 @@ impl TemplateObject for StringPlugin {
                         .unwrap_or_default();
                     let mut t = self.text.borrow_mut();
                     if let Ok(re) = regex::Regex::new(&search) {
-                        *t = re.replace_all(&*t, replace.as_str()).into_owned();
+                        *t = re.replace_all(&t, replace.as_str()).into_owned();
                     } else {
                         *t = t.replace(&search, &replace);
                     }
@@ -1753,7 +1879,7 @@ impl TemplateObject for StringPlugin {
                     .unwrap_or_default();
                 let mut t = self.text.borrow_mut();
                 if let Ok(re) = regex::Regex::new(&search) {
-                    *t = re.replace_all(&*t, "").into_owned();
+                    *t = re.replace_all(&t, "").into_owned();
                 } else {
                     *t = t.replace(&search, "");
                 }
@@ -1842,7 +1968,7 @@ impl TablePlugin {
         }
         let mut col_items: Vec<Value> = self.data[start..=end].to_vec();
         if self.pad && blanks > 0 {
-            col_items.extend(std::iter::repeat(Value::Undefined).take(blanks));
+            col_items.extend(std::iter::repeat_n(Value::Undefined, blanks));
         }
         Some(col_items)
     }
@@ -1855,7 +1981,10 @@ impl TablePlugin {
 
     pub fn get_cols(&self) -> Vec<Value> {
         (0..self.ncols)
-            .filter_map(|c| self.get_col(c as isize).map(Value::from_list))
+            .filter_map(|c| self.get_col(c as isize))
+            // Perl's `return ()` inside map contributes nothing to the result
+            .filter(|col| !col.is_empty())
+            .map(Value::from_list)
             .collect()
     }
 }
@@ -1987,7 +2116,7 @@ fn load_table_plugin(args: &[Value]) -> Result<Value, TemplateException> {
 
 pub fn create_url_callable(base: Option<String>, base_args: HashMap<String, Value>) -> Value {
     let base_url = base.unwrap_or_default();
-    Value::from_fn(move |call_args, _| {
+    Value::function(move |call_args, _| {
         let mut pos = call_args.to_vec();
         let mut add_args = HashMap::new();
         if let Some(Value::Hash(h_rc)) = pos.last().cloned() {
@@ -2158,7 +2287,7 @@ fn load_wrap_plugin(context: &Context) -> Value {
         })),
     );
 
-    Value::from_fn(|call_args, _| {
+    Value::function(|call_args, _| {
         let text = call_args
             .first()
             .map(|v| v.to_tt_string())

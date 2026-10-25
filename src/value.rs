@@ -32,7 +32,7 @@ where
     }
 }
 
-pub trait TemplateObject: fmt::Debug {
+pub trait TemplateObject {
     fn type_name(&self) -> &str;
 
     fn to_tt_string(&self) -> String {
@@ -57,7 +57,9 @@ pub trait TemplateObject: fmt::Debug {
         None
     }
 
-    fn as_any(&self) -> &dyn Any;
+    fn as_any(&self) -> &dyn Any {
+        &()
+    }
 }
 
 #[derive(Clone)]
@@ -84,7 +86,7 @@ impl fmt::Debug for Value {
             Value::List(l) => write!(f, "List({:?})", l.borrow()),
             Value::Hash(h) => write!(f, "Hash({:?})", h.borrow()),
             Value::Function(func) => write!(f, "Function({})", func.type_name()),
-            Value::Object(o) => write!(f, "Object({:?})", o),
+            Value::Object(o) => write!(f, "Object({})", o.type_name()),
             Value::Exception(e) => write!(f, "Exception({:?})", e.borrow()),
             Value::ScalarRef(s) => write!(f, "ScalarRef({:?})", s.borrow()),
         }
@@ -118,7 +120,7 @@ pub fn format_perl_float(val: f64) -> String {
     let exp: i32 = exp_str.parse().unwrap_or(0);
     let digits: String = mantissa.chars().filter(|&c| c != '.').collect();
 
-    if exp < -4 || exp >= 15 {
+    if !(-4..15).contains(&exp) {
         // Exponential notation
         let first = &digits[..1];
         let frac = digits[1..].trim_end_matches('0');

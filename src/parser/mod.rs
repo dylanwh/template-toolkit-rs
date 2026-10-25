@@ -128,7 +128,10 @@ pub struct ParseInfo {
     pub debug: Option<bool>,
 }
 
-#[derive(Debug, Clone)]
+/// Callback receiving parser warnings (e.g. duplicate BLOCK definitions).
+pub type WarnHandler = Rc<dyn Fn(&str)>;
+
+#[derive(Clone)]
 pub struct Parser {
     pub styles: Vec<ParserStyle>,
     pub debug: u32,
@@ -138,12 +141,18 @@ pub struct Parser {
     pub namespaces: HashMap<String, ConstantsNamespace>,
     pub error_msg: String,
     pub warnings: Vec<String>,
-    pub warn_handler: Option<Rc<dyn Fn(&str)>>,
+    pub warn_handler: Option<WarnHandler>,
+}
+
+impl std::fmt::Debug for Parser {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Parser").finish_non_exhaustive()
+    }
 }
 
 #[bon::bon]
 impl Parser {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         start_tag: Option<String>,
         end_tag: Option<String>,
@@ -159,7 +168,7 @@ impl Parser {
         #[builder(default = false)] trace_vars: bool,
         #[builder(default = 0)] debug: u32,
         #[builder(default)] namespaces: HashMap<String, ConstantsNamespace>,
-        warn_handler: Option<Rc<dyn Fn(&str)>>,
+        warn_handler: Option<WarnHandler>,
     ) -> Result<Self, String> {
         let mut parser = Self {
             styles: Vec::new(),
@@ -173,7 +182,7 @@ impl Parser {
             warn_handler,
         };
 
-        let mut cfg = StyleConfig {
+        let cfg = StyleConfig {
             tag_style: tag_style.or_else(|| Some("default".to_string())),
             start_tag,
             end_tag,
@@ -321,8 +330,10 @@ impl Parser {
             line: String::new(),
             inperl: 0,
             debug_dirs: false,
+            wrap_debug: false,
         };
         state.debug_dirs = state.info.debug.unwrap_or(state.parser.debug_dirs);
+        state.wrap_debug = state.debug_dirs;
 
         let block = state.run_parse(chunks)?;
         let mut meta_map = HashMap::new();
@@ -442,6 +453,91 @@ impl StackVal {
     }
 }
 
+// TT compiles `expr OP expr` by splicing the operand source text together and
+// letting Perl re-parse it, so Perl's operator precedence (not the grammar's)
+// decides evaluation order. Emulate that by flattening and re-parsing.
+enum PTok {
+    Atom(Expr),
+    Op(BinOp),
+    Not,
+}
+
+fn perl_flatten(e: Expr, out: &mut Vec<PTok>) {
+    match e {
+        Expr::BinOp { op, left, right } if op != BinOp::IntDiv => {
+            perl_flatten(*left, out);
+            out.push(PTok::Op(op));
+            perl_flatten(*right, out);
+        }
+        Expr::Not(x) => {
+            out.push(PTok::Not);
+            perl_flatten(*x, out);
+        }
+        other => out.push(PTok::Atom(other)),
+    }
+}
+
+fn perl_prec(op: BinOp) -> u8 {
+    match op {
+        BinOp::Mul | BinOp::Div | BinOp::Mod => 7,
+        BinOp::Add | BinOp::Sub | BinOp::Cat => 6,
+        BinOp::Lt | BinOp::Gt | BinOp::Le | BinOp::Ge => 5,
+        BinOp::Eq | BinOp::Ne => 4,
+        BinOp::And => 3,
+        BinOp::Or => 2,
+        BinOp::IntDiv => 8,
+    }
+}
+
+fn perl_unary(toks: &mut std::iter::Peekable<std::vec::IntoIter<PTok>>) -> Expr {
+    match toks.next() {
+        Some(PTok::Not) => Expr::Not(Box::new(perl_unary(toks))),
+        Some(PTok::Atom(e)) => e,
+        _ => Expr::Str(String::new()),
+    }
+}
+
+fn perl_climb(toks: &mut std::iter::Peekable<std::vec::IntoIter<PTok>>, min: u8) -> Expr {
+    let mut left = perl_unary(toks);
+    while let Some(PTok::Op(op)) = toks.peek() {
+        let op = *op;
+        let pr = perl_prec(op);
+        if pr < min {
+            break;
+        }
+        toks.next();
+        let right = perl_climb(toks, pr + 1);
+        left = Expr::BinOp {
+            op,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+    }
+    left
+}
+
+fn perl_reparse(e: Expr) -> Expr {
+    let mut toks = Vec::new();
+    perl_flatten(e, &mut toks);
+    perl_climb(&mut toks.into_iter().peekable(), 0)
+}
+
+fn perl_binop(op: BinOp, left: Expr, right: Expr) -> Expr {
+    let e = Expr::BinOp {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+    };
+    if op == BinOp::IntDiv {
+        return e;
+    }
+    perl_reparse(e)
+}
+
+fn perl_not(e: Expr) -> Expr {
+    perl_reparse(Expr::Not(Box::new(e)))
+}
+
 fn unquote_literal(s: &str) -> String {
     let inner = if s.starts_with('\'') && s.ends_with('\'') && s.len() >= 2 {
         &s[1..s.len() - 1]
@@ -492,6 +588,8 @@ struct ParseSession<'a> {
     line: String,
     inperl: usize,
     debug_dirs: bool,
+    /// $info->{DEBUG}: fixed at the start of a parse (DEBUG on/off only affects later parses)
+    wrap_debug: bool,
 }
 
 impl<'a> ParseSession<'a> {
@@ -644,7 +742,7 @@ impl<'a> ParseSession<'a> {
                                 queue.push(SplitChunk::Token(tt, tv));
                             }
 
-                            if self.debug_dirs && !in_string {
+                            if self.wrap_debug && !in_string {
                                 let file_name = self.info.name.clone().unwrap_or_default();
                                 let debug_tokens = vec![
                                     ("DEBUG".to_string(), "DEBUG".to_string()),
@@ -944,12 +1042,13 @@ impl<'a> ParseSession<'a> {
                     _ => None,
                 });
                 if let Some(on) = first_is_on_off {
+                    self.parser.debug_dirs = on;
                     self.debug_dirs = on;
                     Ok(StackVal::Stmt(Some(Stmt::Debug {
                         names: na.names,
                         args: na.args,
                     })))
-                } else if self.debug_dirs {
+                } else if self.parser.debug_dirs {
                     Ok(StackVal::Stmt(Some(Stmt::Debug {
                         names: na.names,
                         args: na.args,
@@ -1764,11 +1863,7 @@ impl<'a> ParseSession<'a> {
                     "%" => BinOp::Mod,
                     _ => BinOp::Add,
                 };
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(op, left, right)))
             }
 
             // Rule 134: expr -> expr '/' expr
@@ -1776,11 +1871,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::Div,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::Div, left, right)))
             }
 
             // Rule 135: expr -> expr '+' expr
@@ -1788,11 +1879,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::Add,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::Add, left, right)))
             }
 
             // Rule 136: expr -> expr DIV expr
@@ -1800,11 +1887,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::IntDiv,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::IntDiv, left, right)))
             }
 
             // Rule 137: expr -> expr MOD expr
@@ -1812,11 +1895,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::Mod,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::Mod, left, right)))
             }
 
             // Rule 138: expr -> expr CMPOP expr
@@ -1833,11 +1912,7 @@ impl<'a> ParseSession<'a> {
                     ">=" => BinOp::Ge,
                     _ => BinOp::Eq,
                 };
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(op, left, right)))
             }
 
             // Rule 139: expr -> expr CAT expr
@@ -1845,11 +1920,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::Cat,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::Cat, left, right)))
             }
 
             // Rule 140: expr -> expr AND expr
@@ -1857,11 +1928,7 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::And,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::And, left, right)))
             }
 
             // Rule 141: expr -> expr OR expr
@@ -1869,17 +1936,13 @@ impl<'a> ParseSession<'a> {
                 let right = v.pop().unwrap().into_expr();
                 let _op = v.pop();
                 let left = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::BinOp {
-                    op: BinOp::Or,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }))
+                Ok(StackVal::Expr(perl_binop(BinOp::Or, left, right)))
             }
 
             // Rule 142: expr -> NOT expr
             142 => {
                 let expr = v.pop().unwrap().into_expr();
-                Ok(StackVal::Expr(Expr::Not(Box::new(expr))))
+                Ok(StackVal::Expr(perl_not(expr)))
             }
 
             // Rule 143: expr -> expr '?' expr ':' expr
@@ -1913,7 +1976,20 @@ impl<'a> ParseSession<'a> {
             145 => {
                 let _rp = v.pop();
                 let expr = v.pop().unwrap();
-                Ok(expr)
+                Ok(match expr {
+                    StackVal::Expr(e @ (Expr::BinOp { .. } | Expr::Not(_)))
+                        if !matches!(
+                            e,
+                            Expr::BinOp {
+                                op: BinOp::IntDiv,
+                                ..
+                            }
+                        ) =>
+                    {
+                        StackVal::Expr(Expr::Paren(Box::new(e)))
+                    }
+                    other => other,
+                })
             }
 
             // Rule 146: expr -> term

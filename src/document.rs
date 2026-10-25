@@ -28,6 +28,8 @@ pub struct Document {
     pub variables: HashMap<String, VariableTrace>,
     pub hot: Cell<bool>,
     pub from_compiled: bool,
+    /// Defined BLOCKs are bare CODE refs in Perl TT: no recursion (hot) check.
+    pub is_block: bool,
 }
 
 impl fmt::Debug for Document {
@@ -48,6 +50,7 @@ impl Clone for Document {
             variables: self.variables.clone(),
             hot: Cell::new(self.hot.get()),
             from_compiled: self.from_compiled,
+            is_block: self.is_block,
         }
     }
 }
@@ -70,6 +73,7 @@ impl Document {
             variables: parsed.variables,
             hot: Cell::new(false),
             from_compiled: false,
+            is_block: false,
         }
     }
 
@@ -85,6 +89,7 @@ impl Document {
             variables: HashMap::new(),
             hot: Cell::new(false),
             from_compiled: false,
+            is_block: true,
         }
     }
 
@@ -195,5 +200,9 @@ impl TemplateObject for Document {
 
     fn to_tt_string(&self) -> String {
         "Template::Document".to_string()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

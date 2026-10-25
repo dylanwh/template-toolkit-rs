@@ -653,7 +653,7 @@ fn pad_string(s: String, width: Option<usize>, left_align: bool, zero_pad: bool)
         return s;
     }
     let pad_char = if zero_pad { '0' } else { ' ' };
-    let pad: String = std::iter::repeat(pad_char).take(w - char_len).collect();
+    let pad: String = std::iter::repeat_n(pad_char, w - char_len).collect();
     if left_align {
         format!("{}{}", s, pad)
     } else {

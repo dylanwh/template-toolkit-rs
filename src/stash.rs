@@ -40,7 +40,7 @@ pub struct Stash {
 
 #[bon::bon]
 impl Stash {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         params: Option<HashMap<String, Value>>,
         #[builder(default = false)] strict: bool,
@@ -410,7 +410,7 @@ impl Stash {
 
     pub fn getref_pairs(&self, pairs: &[(Value, Vec<Value>)]) -> Result<Value, ControlFlow> {
         if pairs.is_empty() {
-            return Ok(Value::from_fn(|_, _| Ok(Value::Str(String::new()))));
+            return Ok(Value::function(|_, _| Ok(Value::Str(String::new()))));
         }
 
         let mut current_root: Option<Value> = None; // None means at_root
@@ -429,7 +429,7 @@ impl Stash {
         }
 
         if !root_viable {
-            return Ok(Value::from_fn(|_, _| Ok(Value::Str(String::new()))));
+            return Ok(Value::function(|_, _| Ok(Value::Str(String::new()))));
         }
 
         let (last_item, last_args) = pairs[pairs.len() - 1].clone();
@@ -503,6 +503,11 @@ impl Stash {
         lvalue: bool,
     ) -> Result<Value, ControlFlow> {
         self.dotop_val(root, item, args, lvalue, None)
+    }
+
+    /// Perl `$stash->dotop($stash, $item, \@args)`: single lookup at the root, no undefined handling.
+    pub fn dotop_at_root(&self, item: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+        self.dotop_root(item, args, false, None)
     }
 
     fn with_vmethods<F, R>(&self, f: F) -> R
@@ -650,6 +655,13 @@ impl Stash {
             }
 
             Value::List(list_rc) => {
+                // LIST_OPS apply to lvalue lookups too (e.g. `list.last.key = value`)
+                if !(self.context_mode && item_str == "array") {
+                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied()) {
+                        let res = op(root, args)?;
+                        return self.finalize_result(res, &item_str, return_ref, scalar_context);
+                    }
+                }
                 if !lvalue {
                     if self.context_mode && item_str == "array" {
                         return self.finalize_result(
@@ -658,10 +670,6 @@ impl Stash {
                             return_ref,
                             scalar_context,
                         );
-                    }
-                    if let Some(op) = self.with_vmethods(|vm| vm.list_ops.get(&item_str).copied()) {
-                        let res = op(root, args)?;
-                        return self.finalize_result(res, &item_str, return_ref, scalar_context);
                     }
                     if self.context_mode {
                         if let Some(sop) =

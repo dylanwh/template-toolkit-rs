@@ -16,7 +16,7 @@ pub mod vmethods;
 use std::{cell::RefCell, collections::HashMap, fs, path::Path, rc::Rc};
 
 use crate::{
-    constants::{debug_flags, DebugFlagsInput, CHOMP_NONE, DEBUG_DIRS, DEBUG_PARSER},
+    constants::{debug_flags, DebugFlagsInput, CHOMP_NONE},
     context::{BlockDef, Context},
     error::TemplateException,
     filters::{FilterDef, Filters},
@@ -32,12 +32,13 @@ use crate::{
 pub struct Template {
     service: Service,
     output_path: Option<String>,
+    output: Option<String>,
     last_error: Rc<RefCell<Option<TemplateException>>>,
 }
 
 #[bon::bon]
 impl Template {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         // Parser options
         start_tag: Option<String>,
@@ -46,13 +47,14 @@ impl Template {
         outline_tag: Option<String>,
         #[builder(default = false)] anycase: bool,
         #[builder(default = false)] interpolate: bool,
-        #[builder(default = CHOMP_NONE)] pre_chomp: u32,
-        #[builder(default = CHOMP_NONE)] post_chomp: u32,
+        #[builder(default = CHOMP_NONE)] pre_chomp: usize,
+        #[builder(default = CHOMP_NONE)] post_chomp: usize,
         #[builder(default = false)] v1dollar: bool,
         constants: Option<HashMap<String, Value>>,
         constants_namespace: Option<String>,
         namespace: Option<HashMap<String, ConstantsNamespace>>,
         #[builder(default = false)] trace_vars: bool,
+        parser: Option<Parser>,
 
         // Provider options
         include_path: Option<Vec<IncludePathItem>>,
@@ -105,8 +107,11 @@ impl Template {
 
         // Output options
         output_path: Option<String>,
+        output: Option<String>,
     ) -> Result<Self, TemplateException> {
         let resolved_debug: u32 = match debug {
+            // purely numeric DEBUG values are used as-is; only textual ones are converted
+            Some(DebugFlagsInput::Number(n)) => n,
             Some(inp) => match debug_flags(inp) {
                 Ok(out) => out.as_u32().unwrap_or(0),
                 Err(msg) => return Err(TemplateException::new("undef", msg)),
@@ -118,6 +123,7 @@ impl Template {
             return Ok(Self {
                 service: svc,
                 output_path,
+                output,
                 last_error: Rc::new(RefCell::new(None)),
             });
         }
@@ -131,22 +137,24 @@ impl Template {
                     ns_map.insert(cns_key, ConstantsNamespace::new(consts));
                 }
 
-                let parser = Parser::builder()
-                    .maybe_start_tag(start_tag)
-                    .maybe_end_tag(end_tag)
-                    .maybe_tag_style(tag_style)
-                    .maybe_outline_tag(outline_tag)
-                    .anycase(anycase)
-                    .interpolate(interpolate)
-                    .pre_chomp(pre_chomp)
-                    .post_chomp(post_chomp)
-                    .v1dollar(v1dollar)
-                    .namespaces(ns_map)
-                    .trace_vars(trace_vars)
-                    .debug((resolved_debug & DEBUG_PARSER) != 0)
-                    .debug_dirs((resolved_debug & DEBUG_DIRS) != 0)
-                    .build()
-                    .map_err(|e| TemplateException::new("parse", e))?;
+                let parser = match parser {
+                    Some(p) => p,
+                    None => Parser::builder()
+                        .maybe_start_tag(start_tag)
+                        .maybe_end_tag(end_tag)
+                        .maybe_tag_style(tag_style)
+                        .maybe_outline_tag(outline_tag)
+                        .anycase(anycase)
+                        .interpolate(interpolate)
+                        .pre_chomp(pre_chomp)
+                        .post_chomp(post_chomp)
+                        .v1dollar(v1dollar)
+                        .namespaces(ns_map)
+                        .trace_vars(trace_vars)
+                        .debug(resolved_debug)
+                        .build()
+                        .map_err(|e| TemplateException::new("parse", e))?,
+                };
 
                 let providers = match load_templates {
                     Some(p) => p,
@@ -165,7 +173,8 @@ impl Template {
                             .maybe_unicode(unicode)
                             .maybe_encoding(encoding)
                             .parser(Rc::new(RefCell::new(parser)))
-                            .build();
+                            .build()
+                            .map_err(|e| TemplateException::new("file", e))?;
                         vec![Rc::new(RefCell::new(prov))]
                     }
                 };
@@ -173,10 +182,13 @@ impl Template {
                 let filter_providers = match load_filters {
                     Some(fp) => fp,
                     None => {
-                        let f = Filters::builder()
-                            .maybe_filters(filters)
-                            .tolerant(tolerant)
-                            .build();
+                        let mut f = Filters::new();
+                        if let Some(defs) = filters {
+                            for (k, v) in defs {
+                                f.store(k, v);
+                            }
+                        }
+                        f.tolerant = tolerant;
                         vec![Rc::new(RefCell::new(f))]
                     }
                 };
@@ -220,6 +232,7 @@ impl Template {
         Ok(Self {
             service: svc,
             output_path,
+            output,
             last_error: Rc::new(RefCell::new(None)),
         })
     }
@@ -277,6 +290,22 @@ impl Template {
             Err(e) => {
                 *self.last_error.borrow_mut() = Some(e.clone());
                 Err(e)
+            }
+        }
+    }
+
+    /// Process to the file named by the OUTPUT option (relative to OUTPUT_PATH).
+    pub fn process_to_output(
+        &self,
+        input: &Value,
+        vars: Option<HashMap<String, Value>>,
+    ) -> Result<(), TemplateException> {
+        match self.output.clone() {
+            Some(out) => self.process_to_file(input, vars, &out),
+            None => {
+                let ex = TemplateException::new("undef", "no OUTPUT option set");
+                *self.last_error.borrow_mut() = Some(ex.clone());
+                Err(ex)
             }
         }
     }

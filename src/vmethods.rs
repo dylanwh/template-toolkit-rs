@@ -2,22 +2,20 @@ use std::{
     cell::RefCell,
     cmp::Ordering,
     collections::{HashMap, HashSet},
-    rc::Rc,
 };
 
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
 
 use crate::{
-    context::Context,
     error::ControlFlow,
-    value::{CallContext, Callable, MethodResult, Value},
+    stash::is_private_enabled,
+    value::{CallContext, MethodResult, Value},
 };
 
-pub type VMethodFn =
-    Rc<dyn Fn(&Value, &[Value], Option<&mut Context>) -> Result<Value, ControlFlow>>;
+pub type VMethodFn = fn(&Value, &[Value]) -> Result<Value, ControlFlow>;
 
-#[derive(Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct VMethodRegistry {
     pub root_ops: HashMap<String, VMethodFn>,
     pub scalar_ops: HashMap<String, VMethodFn>,
@@ -25,24 +23,152 @@ pub struct VMethodRegistry {
     pub list_ops: HashMap<String, VMethodFn>,
 }
 
+impl Default for VMethodRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 thread_local! {
-    pub static GLOBAL_VMETHODS: RefCell<VMethodRegistry> = RefCell::new(VMethodRegistry::default());
+    pub static GLOBAL_VMETHODS: RefCell<VMethodRegistry> = RefCell::new(VMethodRegistry::new());
 }
 
 pub fn reset_global_vmethods() {
     GLOBAL_VMETHODS.with(|g| {
-        *g.borrow_mut() = VMethodRegistry::default();
+        *g.borrow_mut() = VMethodRegistry::new();
     });
 }
 
 pub fn define_global_vmethod(vtype: &str, name: &str, f: VMethodFn) {
     GLOBAL_VMETHODS.with(|g| {
-        g.borrow_mut().define(vtype, name, f);
+        g.borrow_mut().define_vmethod(vtype, name, f);
     });
 }
 
 impl VMethodRegistry {
-    pub fn define(&mut self, vtype: &str, name: &str, f: VMethodFn) {
+    pub fn new() -> Self {
+        let mut reg = Self {
+            root_ops: HashMap::new(),
+            scalar_ops: HashMap::new(),
+            hash_ops: HashMap::new(),
+            list_ops: HashMap::new(),
+        };
+
+        // ROOT_OPS
+        reg.root_ops.insert("inc".to_string(), vmethod_root_inc);
+        reg.root_ops.insert("dec".to_string(), vmethod_root_dec);
+        reg.root_ops
+            .insert("import".to_string(), vmethod_hash_import);
+
+        // SCALAR_OPS
+        reg.scalar_ops
+            .insert("item".to_string(), vmethod_scalar_item);
+        reg.scalar_ops
+            .insert("list".to_string(), vmethod_scalar_list);
+        reg.scalar_ops
+            .insert("hash".to_string(), vmethod_scalar_hash);
+        reg.scalar_ops
+            .insert("length".to_string(), vmethod_scalar_length);
+        reg.scalar_ops
+            .insert("size".to_string(), vmethod_scalar_size);
+        reg.scalar_ops
+            .insert("empty".to_string(), vmethod_scalar_empty);
+        reg.scalar_ops
+            .insert("defined".to_string(), vmethod_scalar_defined);
+        reg.scalar_ops
+            .insert("upper".to_string(), vmethod_scalar_upper);
+        reg.scalar_ops
+            .insert("lower".to_string(), vmethod_scalar_lower);
+        reg.scalar_ops
+            .insert("ucfirst".to_string(), vmethod_scalar_ucfirst);
+        reg.scalar_ops
+            .insert("lcfirst".to_string(), vmethod_scalar_lcfirst);
+        reg.scalar_ops
+            .insert("trim".to_string(), vmethod_scalar_trim);
+        reg.scalar_ops
+            .insert("collapse".to_string(), vmethod_scalar_collapse);
+        reg.scalar_ops
+            .insert("squote".to_string(), vmethod_scalar_squote);
+        reg.scalar_ops
+            .insert("dquote".to_string(), vmethod_scalar_dquote);
+        reg.scalar_ops
+            .insert("html".to_string(), vmethod_scalar_html);
+        reg.scalar_ops.insert("xml".to_string(), vmethod_scalar_xml);
+        reg.scalar_ops
+            .insert("repeat".to_string(), vmethod_scalar_repeat);
+        reg.scalar_ops
+            .insert("search".to_string(), vmethod_scalar_search);
+        reg.scalar_ops
+            .insert("match".to_string(), vmethod_scalar_match);
+        reg.scalar_ops
+            .insert("replace".to_string(), vmethod_scalar_replace);
+        reg.scalar_ops
+            .insert("remove".to_string(), vmethod_scalar_remove);
+        reg.scalar_ops
+            .insert("split".to_string(), vmethod_scalar_split);
+        reg.scalar_ops
+            .insert("chunk".to_string(), vmethod_scalar_chunk);
+        reg.scalar_ops
+            .insert("substr".to_string(), vmethod_scalar_substr);
+
+        // HASH_OPS
+        reg.hash_ops.insert("item".to_string(), vmethod_hash_item);
+        reg.hash_ops.insert("hash".to_string(), vmethod_hash_hash);
+        reg.hash_ops.insert("size".to_string(), vmethod_hash_size);
+        reg.hash_ops.insert("empty".to_string(), vmethod_hash_empty);
+        reg.hash_ops.insert("keys".to_string(), vmethod_hash_keys);
+        reg.hash_ops
+            .insert("values".to_string(), vmethod_hash_values);
+        reg.hash_ops.insert("items".to_string(), vmethod_hash_items);
+        reg.hash_ops.insert("each".to_string(), vmethod_hash_items);
+        reg.hash_ops.insert("pairs".to_string(), vmethod_hash_pairs);
+        reg.hash_ops.insert("list".to_string(), vmethod_hash_list);
+        reg.hash_ops
+            .insert("exists".to_string(), vmethod_hash_exists);
+        reg.hash_ops
+            .insert("defined".to_string(), vmethod_hash_defined);
+        reg.hash_ops
+            .insert("delete".to_string(), vmethod_hash_delete);
+        reg.hash_ops
+            .insert("import".to_string(), vmethod_hash_import);
+        reg.hash_ops.insert("sort".to_string(), vmethod_hash_sort);
+        reg.hash_ops.insert("nsort".to_string(), vmethod_hash_nsort);
+
+        // LIST_OPS
+        reg.list_ops.insert("item".to_string(), vmethod_list_item);
+        reg.list_ops.insert("list".to_string(), vmethod_list_list);
+        reg.list_ops.insert("hash".to_string(), vmethod_list_hash);
+        reg.list_ops.insert("size".to_string(), vmethod_list_size);
+        reg.list_ops.insert("empty".to_string(), vmethod_list_empty);
+        reg.list_ops.insert("max".to_string(), vmethod_list_max);
+        reg.list_ops
+            .insert("defined".to_string(), vmethod_list_defined);
+        reg.list_ops.insert("first".to_string(), vmethod_list_first);
+        reg.list_ops.insert("last".to_string(), vmethod_list_last);
+        reg.list_ops
+            .insert("reverse".to_string(), vmethod_list_reverse);
+        reg.list_ops.insert("join".to_string(), vmethod_list_join);
+        reg.list_ops.insert("grep".to_string(), vmethod_list_grep);
+        reg.list_ops.insert("sort".to_string(), vmethod_list_sort);
+        reg.list_ops.insert("nsort".to_string(), vmethod_list_nsort);
+        reg.list_ops
+            .insert("unique".to_string(), vmethod_list_unique);
+        reg.list_ops
+            .insert("import".to_string(), vmethod_list_import);
+        reg.list_ops.insert("merge".to_string(), vmethod_list_merge);
+        reg.list_ops.insert("slice".to_string(), vmethod_list_slice);
+        reg.list_ops
+            .insert("splice".to_string(), vmethod_list_splice);
+        reg.list_ops.insert("push".to_string(), vmethod_list_push);
+        reg.list_ops.insert("pop".to_string(), vmethod_list_pop);
+        reg.list_ops
+            .insert("unshift".to_string(), vmethod_list_unshift);
+        reg.list_ops.insert("shift".to_string(), vmethod_list_shift);
+
+        reg
+    }
+
+    pub fn define_vmethod(&mut self, vtype: &str, name: &str, f: VMethodFn) {
         let lower = vtype.to_ascii_lowercase();
         if lower.starts_with("scalar") || lower.starts_with("item") || lower.starts_with("text") {
             self.scalar_ops.insert(name.to_string(), f);
@@ -53,6 +179,10 @@ impl VMethodRegistry {
         } else if lower.starts_with("root") {
             self.root_ops.insert(name.to_string(), f);
         }
+    }
+
+    pub fn define(&mut self, vtype: &str, name: &str, f: VMethodFn) {
+        self.define_vmethod(vtype, name, f);
     }
 }
 
@@ -369,7 +499,6 @@ pub fn text_replace(text: &str, pattern: &str, replace: &str, global: bool) -> S
 pub fn text_split(text: &str, split_pat: Option<&str>, limit: Option<i64>) -> Vec<Value> {
     let lim = limit.unwrap_or(0);
     if split_pat.is_none() {
-        // Perl's split(' ', $str, $limit): skips leading whitespace, splits on \s+
         let trimmed = text.trim_start();
         if trimmed.is_empty() {
             return Vec::new();
@@ -392,7 +521,7 @@ pub fn text_split(text: &str, split_pat: Option<&str>, limit: Option<i64>) -> Ve
                 .collect()
         }
     } else {
-        let pat = split_pat.unwrap();
+        let pat = split_pat.unwrap_or_default();
         if pat.is_empty() {
             if lim > 0 {
                 let mut chars = text.chars();
@@ -488,779 +617,814 @@ pub fn text_substr(
     }
 }
 
-pub fn call_scalar_vmethod(
-    target: &Value,
-    method: &str,
-    args: &[Value],
-    mut ctx: Option<&mut Context>,
-) -> MethodResult {
-    // Check context-defined and global scalar vmethods first
-    if let Some(ref mut c) = ctx {
-        if let Some(f) = c.vmethods.scalar_ops.get(method).cloned() {
-            return match f(target, args, Some(*c)) {
-                Ok(v) => MethodResult::Value(v),
-                Err(e) => MethodResult::Error(e),
-            };
-        }
-    }
-    let global_fn = GLOBAL_VMETHODS.with(|g| g.borrow().scalar_ops.get(method).cloned());
-    if let Some(f) = global_fn {
-        return match f(target, args, ctx) {
-            Ok(v) => MethodResult::Value(v),
-            Err(e) => MethodResult::Error(e),
-        };
-    }
+// ============================================================================
+// ROOT_OPS
+// ============================================================================
 
-    // Special check forUndefined target
-    if matches!(target, Value::Undefined) {
-        return match method {
-            "defined" => MethodResult::Value(Value::Int(0)),
-            _ => MethodResult::NotFound,
-        };
-    }
+pub fn vmethod_root_inc(_root: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let v = args.first().map(|x| x.to_int()).unwrap_or(0);
+    Ok(Value::Int(v + 1))
+}
 
-    let s = target.to_str();
-    match method {
-        "item" => MethodResult::Value(target.clone()),
-        "list" => MethodResult::Value(Value::list(vec![target.clone()])),
-        "hash" => {
-            let mut m = HashMap::new();
-            m.insert("value".to_string(), target.clone());
-            MethodResult::Value(Value::hash(m))
-        }
-        "length" => MethodResult::Value(Value::Int(s.chars().count() as i64)),
-        "size" => MethodResult::Value(Value::Int(1)),
-        "empty" => MethodResult::Value(Value::Int(if s.is_empty() { 1 } else { 0 })),
-        "defined" => MethodResult::Value(Value::Int(if target.is_defined() { 1 } else { 0 })),
-        "upper" => MethodResult::Value(Value::Str(s.to_uppercase())),
-        "lower" => MethodResult::Value(Value::Str(s.to_lowercase())),
-        "ucfirst" => MethodResult::Value(Value::Str(text_ucfirst(&s))),
-        "lcfirst" => MethodResult::Value(Value::Str(text_lcfirst(&s))),
-        "trim" => MethodResult::Value(Value::Str(text_trim(&s))),
-        "collapse" => MethodResult::Value(Value::Str(text_collapse(&s))),
-        "squote" => MethodResult::Value(Value::Str(text_squote(&s))),
-        "dquote" => MethodResult::Value(Value::Str(text_dquote(&s))),
-        "html" => MethodResult::Value(Value::Str(html_escape(&s))),
-        "xml" => MethodResult::Value(Value::Str(xml_escape(&s))),
-        "repeat" => {
-            let count = args.first().map(|v| v.to_int()).unwrap_or(1);
-            if count <= 0 {
-                MethodResult::Value(Value::Str(String::new()))
-            } else {
-                MethodResult::Value(Value::Str(s.repeat(count as usize)))
-            }
-        }
-        "search" => {
-            if let Some(pat) = args.first() {
-                if !pat.is_defined() {
-                    return MethodResult::Value(target.clone());
-                }
-                let matched = text_search(&s, &pat.to_str());
-                MethodResult::Value(Value::Int(if matched { 1 } else { 0 }))
-            } else {
-                MethodResult::Value(target.clone())
-            }
-        }
-        "match" => {
-            if let Some(pat) = args.first() {
-                if !pat.is_defined() {
-                    return MethodResult::Value(target.clone());
-                }
-                let global = args.get(1).map(|v| v.is_truthy()).unwrap_or(false);
-                MethodResult::Value(text_match(&s, &pat.to_str(), global))
-            } else {
-                MethodResult::Value(target.clone())
-            }
-        }
-        "replace" => {
-            let pat = args.first().map(|v| v.to_str()).unwrap_or_default();
-            let rep = args.get(1).map(|v| v.to_str()).unwrap_or_default();
-            let global = args.get(2).map(|v| v.is_truthy()).unwrap_or(true);
-            MethodResult::Value(Value::Str(text_replace(&s, &pat, &rep, global)))
-        }
-        "remove" => {
-            if let Some(pat) = args.first() {
-                if !pat.is_defined() {
-                    return MethodResult::Value(target.clone());
-                }
-                MethodResult::Value(Value::Str(text_replace(&s, &pat.to_str(), "", true)))
-            } else {
-                MethodResult::Value(target.clone())
-            }
-        }
-        "split" => {
-            let pat_str = args.first().and_then(|v| {
-                if v.is_defined() {
-                    Some(v.to_str())
-                } else {
-                    None
-                }
-            });
-            let limit = args.get(1).and_then(|v| {
-                if v.is_defined() {
-                    Some(v.to_int())
-                } else {
-                    None
-                }
-            });
-            MethodResult::Value(Value::list(text_split(&s, pat_str.as_deref(), limit)))
-        }
-        "chunk" => {
-            let sz = args.first().map(|v| v.to_int()).unwrap_or(1);
-            MethodResult::Value(Value::list(text_chunk(&s, sz)))
-        }
-        "substr" => {
-            let offset = args.first().map(|v| v.to_int()).unwrap_or(0);
-            let length = args.get(1).and_then(|v| {
-                if v.is_defined() {
-                    Some(v.to_int())
-                } else {
-                    None
-                }
-            });
-            let replacement = args.get(2).and_then(|v| {
-                if v.is_defined() {
-                    Some(v.to_str())
-                } else {
-                    None
-                }
-            });
-            MethodResult::Value(Value::Str(text_substr(
-                &s,
-                offset,
-                length,
-                replacement.as_deref(),
-            )))
-        }
-        _ => MethodResult::NotFound,
+pub fn vmethod_root_dec(_root: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let v = args.first().map(|x| x.to_int()).unwrap_or(0);
+    Ok(Value::Int(v - 1))
+}
+
+// ============================================================================
+// SCALAR_OPS
+// ============================================================================
+
+pub fn vmethod_scalar_item(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(target.clone())
+}
+
+pub fn vmethod_scalar_list(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    if !target.is_defined() {
+        return Ok(Value::Undefined);
+    }
+    Ok(Value::list(vec![target.clone()]))
+}
+
+pub fn vmethod_scalar_hash(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let mut m = HashMap::new();
+    m.insert("value".to_string(), target.clone());
+    Ok(Value::hash(m))
+}
+
+pub fn vmethod_scalar_length(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(target.to_tt_string().chars().count() as i64))
+}
+
+pub fn vmethod_scalar_size(_target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(1))
+}
+
+pub fn vmethod_scalar_empty(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(if target.to_tt_string().is_empty() {
+        1
+    } else {
+        0
+    }))
+}
+
+pub fn vmethod_scalar_defined(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(if target.is_defined() { 1 } else { 0 }))
+}
+
+pub fn vmethod_scalar_upper(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(target.to_tt_string().to_uppercase()))
+}
+
+pub fn vmethod_scalar_lower(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(target.to_tt_string().to_lowercase()))
+}
+
+pub fn vmethod_scalar_ucfirst(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_ucfirst(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_lcfirst(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_lcfirst(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_trim(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_trim(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_collapse(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_collapse(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_squote(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_squote(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_dquote(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(text_dquote(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_html(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(html_escape(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_xml(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Str(xml_escape(&target.to_tt_string())))
+}
+
+pub fn vmethod_scalar_repeat(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let s = target.to_tt_string();
+    let count = args.first().map(|v| v.to_int()).unwrap_or(1);
+    if count <= 0 {
+        Ok(Value::Str(String::new()))
+    } else {
+        Ok(Value::Str(s.repeat(count as usize)))
     }
 }
 
-pub fn call_hash_vmethod(
-    target: &Value,
-    method: &str,
-    args: &[Value],
-    mut ctx: Option<&mut Context>,
-    private_regex: bool,
-) -> MethodResult {
-    if let Some(ref mut c) = ctx {
-        if let Some(f) = c.vmethods.hash_ops.get(method).cloned() {
-            return match f(target, args, Some(*c)) {
-                Ok(v) => MethodResult::Value(v),
-                Err(e) => MethodResult::Error(e),
-            };
+pub fn vmethod_scalar_search(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Some(pat) = args.first() {
+        if !pat.is_defined() {
+            return Ok(target.clone());
         }
+        let matched = text_search(&target.to_tt_string(), &pat.to_tt_string());
+        Ok(Value::Int(if matched { 1 } else { 0 }))
+    } else {
+        Ok(target.clone())
     }
-    let global_fn = GLOBAL_VMETHODS.with(|g| g.borrow().hash_ops.get(method).cloned());
-    if let Some(f) = global_fn {
-        return match f(target, args, ctx) {
-            Ok(v) => MethodResult::Value(v),
-            Err(e) => MethodResult::Error(e),
-        };
-    }
+}
 
-    // Extract hash map (either Value::Hash or Value::Object with as_hash)
-    let hash_clone: HashMap<String, Value> = match target {
+pub fn vmethod_scalar_match(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Some(pat) = args.first() {
+        if !pat.is_defined() {
+            return Ok(target.clone());
+        }
+        let global = args.get(1).map(|v| v.is_truthy()).unwrap_or(false);
+        Ok(text_match(
+            &target.to_tt_string(),
+            &pat.to_tt_string(),
+            global,
+        ))
+    } else {
+        Ok(target.clone())
+    }
+}
+
+pub fn vmethod_scalar_replace(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let s = target.to_tt_string();
+    let pat = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
+    let rep = args.get(1).map(|v| v.to_tt_string()).unwrap_or_default();
+    let global = args.get(2).map(|v| v.is_truthy()).unwrap_or(true);
+    Ok(Value::Str(text_replace(&s, &pat, &rep, global)))
+}
+
+pub fn vmethod_scalar_remove(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Some(pat) = args.first() {
+        if !pat.is_defined() {
+            return Ok(target.clone());
+        }
+        Ok(Value::Str(text_replace(
+            &target.to_tt_string(),
+            &pat.to_tt_string(),
+            "",
+            true,
+        )))
+    } else {
+        Ok(target.clone())
+    }
+}
+
+pub fn vmethod_scalar_split(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let s = target.to_tt_string();
+    let pat_str = args.first().and_then(|v| {
+        if v.is_defined() {
+            Some(v.to_tt_string())
+        } else {
+            None
+        }
+    });
+    let limit = args.get(1).and_then(|v| {
+        if v.is_defined() {
+            Some(v.to_int())
+        } else {
+            None
+        }
+    });
+    Ok(Value::list(text_split(&s, pat_str.as_deref(), limit)))
+}
+
+pub fn vmethod_scalar_chunk(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let sz = args.first().map(|v| v.to_int()).unwrap_or(1);
+    Ok(Value::list(text_chunk(&target.to_tt_string(), sz)))
+}
+
+pub fn vmethod_scalar_substr(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let s = target.to_tt_string();
+    let offset = args.first().map(|v| v.to_int()).unwrap_or(0);
+    let length = args.get(1).and_then(|v| {
+        if v.is_defined() {
+            Some(v.to_int())
+        } else {
+            None
+        }
+    });
+    let replacement = args.get(2).and_then(|v| {
+        if v.is_defined() {
+            Some(v.to_tt_string())
+        } else {
+            None
+        }
+    });
+    Ok(Value::Str(text_substr(
+        &s,
+        offset,
+        length,
+        replacement.as_deref(),
+    )))
+}
+
+// ============================================================================
+// HASH_OPS
+// ============================================================================
+
+fn extract_hash_clone(target: &Value) -> HashMap<String, Value> {
+    match target {
         Value::Hash(h) => h.borrow().clone(),
-        Value::Object(o) => {
-            if let Some(h) = o.borrow().as_hash() {
-                h.clone()
-            } else {
-                return MethodResult::NotFound;
-            }
-        }
-        _ => return MethodResult::NotFound,
-    };
-
-    match method {
-        "item" => {
-            let key = args.first().map(|v| v.to_str()).unwrap_or_default();
-            if private_regex && (key.starts_with('_') || key.starts_with('.')) {
-                return MethodResult::Value(Value::Undefined);
-            }
-            MethodResult::Value(hash_clone.get(&key).cloned().unwrap_or(Value::Undefined))
-        }
-        "hash" => MethodResult::Value(target.clone()),
-        "size" => MethodResult::Value(Value::Int(hash_clone.len() as i64)),
-        "empty" => MethodResult::Value(Value::Int(if hash_clone.is_empty() { 1 } else { 0 })),
-        "keys" => {
-            let keys: Vec<Value> = hash_clone.keys().cloned().map(Value::Str).collect();
-            MethodResult::Value(Value::list(keys))
-        }
-        "values" => {
-            let vals: Vec<Value> = hash_clone.values().cloned().collect();
-            MethodResult::Value(Value::list(vals))
-        }
-        "items" | "each" => {
-            let mut items = Vec::with_capacity(hash_clone.len() * 2);
-            for (k, v) in hash_clone {
-                items.push(Value::Str(k));
-                items.push(v);
-            }
-            MethodResult::Value(Value::list(items))
-        }
-        "pairs" => {
-            let mut keys: Vec<String> = hash_clone.keys().cloned().collect();
-            keys.sort();
-            let pairs: Vec<Value> = keys
-                .into_iter()
-                .map(|k| {
-                    let v = hash_clone.get(&k).cloned().unwrap_or(Value::Undefined);
-                    let mut m = HashMap::new();
-                    m.insert("key".to_string(), Value::Str(k));
-                    m.insert("value".to_string(), v);
-                    Value::hash(m)
-                })
-                .collect();
-            MethodResult::Value(Value::list(pairs))
-        }
-        "list" => {
-            let what = args.first().map(|v| v.to_str()).unwrap_or_default();
-            match what.as_str() {
-                "keys" => {
-                    let keys: Vec<Value> = hash_clone.keys().cloned().map(Value::Str).collect();
-                    MethodResult::Value(Value::list(keys))
-                }
-                "values" => {
-                    let vals: Vec<Value> = hash_clone.values().cloned().collect();
-                    MethodResult::Value(Value::list(vals))
-                }
-                "each" => {
-                    let mut items = Vec::with_capacity(hash_clone.len() * 2);
-                    for (k, v) in hash_clone {
-                        items.push(Value::Str(k));
-                        items.push(v);
-                    }
-                    MethodResult::Value(Value::list(items))
-                }
-                _ => {
-                    let mut keys: Vec<String> = hash_clone.keys().cloned().collect();
-                    keys.sort();
-                    let pairs: Vec<Value> = keys
-                        .into_iter()
-                        .map(|k| {
-                            let v = hash_clone.get(&k).cloned().unwrap_or(Value::Undefined);
-                            let mut m = HashMap::new();
-                            m.insert("key".to_string(), Value::Str(k));
-                            m.insert("value".to_string(), v);
-                            Value::hash(m)
-                        })
-                        .collect();
-                    MethodResult::Value(Value::list(pairs))
-                }
-            }
-        }
-        "exists" => {
-            let key = args.first().map(|v| v.to_str()).unwrap_or_default();
-            MethodResult::Value(Value::Int(if hash_clone.contains_key(&key) {
-                1
-            } else {
-                0
-            }))
-        }
-        "defined" => {
-            if let Some(arg) = args.first() {
-                let key = arg.to_str();
-                let is_def = hash_clone
-                    .get(&key)
-                    .map(|v| v.is_defined())
-                    .unwrap_or(false);
-                MethodResult::Value(Value::Int(if is_def { 1 } else { 0 }))
-            } else {
-                MethodResult::Value(Value::Int(1))
-            }
-        }
-        "delete" => {
-            if let Value::Hash(h) = target {
-                let mut borrow = h.borrow_mut();
-                for arg in args {
-                    borrow.remove(&arg.to_str());
-                }
-            } else if let Value::Object(o) = target {
-                let mut borrow = o.borrow_mut();
-                if let Some(h) = borrow.as_hash_mut() {
-                    for arg in args {
-                        h.remove(&arg.to_str());
-                    }
-                }
-            }
-            MethodResult::Value(Value::Str(String::new()))
-        }
-        "import" => {
-            if let Some(Value::Hash(imp)) = args.first() {
-                let imp_map = imp.borrow().clone();
-                if let Value::Hash(h) = target {
-                    h.borrow_mut().extend(imp_map);
-                } else if let Value::Object(o) = target {
-                    if let Some(h) = o.borrow_mut().as_hash_mut() {
-                        h.extend(imp_map);
-                    }
-                }
-            }
-            MethodResult::Value(Value::Str(String::new()))
-        }
-        "sort" => {
-            // Sort keys by values case-insensitively
-            let mut keys: Vec<String> = hash_clone.keys().cloned().collect();
-            keys.sort_by(|a, b| {
-                let va = hash_clone
-                    .get(a)
-                    .map(|v| v.to_str().to_lowercase())
-                    .unwrap_or_default();
-                let vb = hash_clone
-                    .get(b)
-                    .map(|v| v.to_str().to_lowercase())
-                    .unwrap_or_default();
-                va.cmp(&vb).then_with(|| a.cmp(b))
-            });
-            MethodResult::Value(Value::list(keys.into_iter().map(Value::Str).collect()))
-        }
-        "nsort" => {
-            // Sort keys by values numerically
-            let mut keys: Vec<String> = hash_clone.keys().cloned().collect();
-            keys.sort_by(|a, b| {
-                let va = hash_clone.get(a).map(|v| v.to_number()).unwrap_or(0.0);
-                let vb = hash_clone.get(b).map(|v| v.to_number()).unwrap_or(0.0);
-                va.partial_cmp(&vb)
-                    .unwrap_or(Ordering::Equal)
-                    .then_with(|| a.cmp(b))
-            });
-            MethodResult::Value(Value::list(keys.into_iter().map(Value::Str).collect()))
-        }
-        _ => MethodResult::NotFound,
+        Value::Object(o) => o.as_hash().map(|h| h.borrow().clone()).unwrap_or_default(),
+        _ => HashMap::new(),
     }
 }
 
-fn get_sort_key(item: &Value, field: Option<&str>, ctx: &mut Option<&mut Context>) -> String {
-    match field {
-        None => item.to_str(),
-        Some(f) => match item {
-            Value::Hash(h) => h.borrow().get(f).map(|v| v.to_str()).unwrap_or_default(),
-            Value::Object(o) => {
-                let ctx_reborrow = ctx.as_deref_mut();
-                let res = o
-                    .borrow_mut()
-                    .call_method(f, &[], CallContext::List, ctx_reborrow);
-                match res {
-                    MethodResult::Value(v) => v.to_str(),
-                    _ => o
-                        .borrow()
-                        .as_hash()
-                        .and_then(|h| h.get(f))
-                        .map(|v| v.to_str())
-                        .unwrap_or_default(),
+pub fn vmethod_hash_item(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let key = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
+    if is_private_enabled() && (key.starts_with('_') || key.starts_with('.')) {
+        return Ok(Value::Undefined);
+    }
+    let map = extract_hash_clone(target);
+    Ok(map.get(&key).cloned().unwrap_or(Value::Undefined))
+}
+
+pub fn vmethod_hash_hash(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(target.clone())
+}
+
+pub fn vmethod_hash_size(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    Ok(Value::Int(map.len() as i64))
+}
+
+pub fn vmethod_hash_empty(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    Ok(Value::Int(if map.is_empty() { 1 } else { 0 }))
+}
+
+pub fn vmethod_hash_keys(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let keys: Vec<Value> = map.keys().cloned().map(Value::Str).collect();
+    Ok(Value::list(keys))
+}
+
+pub fn vmethod_hash_values(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let vals: Vec<Value> = map.values().cloned().collect();
+    Ok(Value::list(vals))
+}
+
+pub fn vmethod_hash_items(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let mut items = Vec::with_capacity(map.len() * 2);
+    for (k, v) in map {
+        items.push(Value::Str(k));
+        items.push(v);
+    }
+    Ok(Value::list(items))
+}
+
+pub fn vmethod_hash_pairs(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let mut keys: Vec<String> = map.keys().cloned().collect();
+    keys.sort();
+    let pairs: Vec<Value> = keys
+        .into_iter()
+        .map(|k| {
+            let v = map.get(&k).cloned().unwrap_or(Value::Undefined);
+            let mut m = HashMap::new();
+            m.insert("key".to_string(), Value::Str(k));
+            m.insert("value".to_string(), v);
+            Value::hash(m)
+        })
+        .collect();
+    Ok(Value::list(pairs))
+}
+
+pub fn vmethod_hash_list(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let what = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
+    match what.as_str() {
+        "keys" => vmethod_hash_keys(target, args),
+        "values" => vmethod_hash_values(target, args),
+        "each" => vmethod_hash_items(target, args),
+        _ => vmethod_hash_pairs(target, args),
+    }
+}
+
+pub fn vmethod_hash_exists(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let key = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
+    Ok(Value::Int(if map.contains_key(&key) { 1 } else { 0 }))
+}
+
+pub fn vmethod_hash_defined(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    if let Some(arg) = args.first() {
+        let key = arg.to_tt_string();
+        let is_def = map.get(&key).map(|v| v.is_defined()).unwrap_or(false);
+        Ok(Value::Int(if is_def { 1 } else { 0 }))
+    } else {
+        Ok(Value::Int(1))
+    }
+}
+
+pub fn vmethod_hash_delete(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Value::Hash(h) = target {
+        let mut borrow = h.borrow_mut();
+        for arg in args {
+            borrow.remove(&arg.to_tt_string());
+        }
+    } else if let Value::Object(o) = target {
+        if let Some(h) = o.as_hash() {
+            let mut borrow = h.borrow_mut();
+            for arg in args {
+                borrow.remove(&arg.to_tt_string());
+            }
+        }
+    }
+    Ok(Value::Str(String::new()))
+}
+
+pub fn vmethod_hash_import(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    for arg in args {
+        if let Value::Hash(imp) = arg {
+            let imp_map = imp.borrow().clone();
+            if let Value::Hash(h) = target {
+                h.borrow_mut().extend(imp_map);
+            } else if let Value::Object(o) = target {
+                if let Some(h) = o.as_hash() {
+                    h.borrow_mut().extend(imp_map);
                 }
             }
-            _ => item.to_str(),
+        }
+    }
+    Ok(Value::Str(String::new()))
+}
+
+pub fn vmethod_hash_sort(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let mut keys: Vec<String> = map.keys().cloned().collect();
+    keys.sort_by(|a, b| {
+        let va = map
+            .get(a)
+            .map(|v| v.to_tt_string().to_lowercase())
+            .unwrap_or_default();
+        let vb = map
+            .get(b)
+            .map(|v| v.to_tt_string().to_lowercase())
+            .unwrap_or_default();
+        va.cmp(&vb).then_with(|| a.cmp(b))
+    });
+    Ok(Value::list(keys.into_iter().map(Value::Str).collect()))
+}
+
+pub fn vmethod_hash_nsort(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let map = extract_hash_clone(target);
+    let mut keys: Vec<String> = map.keys().cloned().collect();
+    keys.sort_by(|a, b| {
+        let va = map.get(a).map(|v| v.to_number()).unwrap_or(0.0);
+        let vb = map.get(b).map(|v| v.to_number()).unwrap_or(0.0);
+        va.partial_cmp(&vb)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| a.cmp(b))
+    });
+    Ok(Value::list(keys.into_iter().map(Value::Str).collect()))
+}
+
+// ============================================================================
+// LIST_OPS
+// ============================================================================
+
+fn extract_list_clone(target: &Value) -> Vec<Value> {
+    match target {
+        Value::List(l) => l.borrow().clone(),
+        Value::Object(o) => o.as_list().map(|l| l.borrow().clone()).unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
+fn get_sort_key(item: &Value, field: Option<&str>) -> String {
+    match field {
+        None => item.to_tt_string(),
+        Some(f) => match item {
+            Value::Hash(h) => h
+                .borrow()
+                .get(f)
+                .map(|v| v.to_tt_string())
+                .unwrap_or_default(),
+            Value::Object(o) => match o.call_method(f, &[], CallContext::Scalar) {
+                MethodResult::Ok(v) => v.to_tt_string(),
+                _ => o
+                    .as_hash()
+                    .and_then(|h| h.borrow().get(f).cloned())
+                    .map(|v| v.to_tt_string())
+                    .unwrap_or_default(),
+            },
+            _ => item.to_tt_string(),
         },
     }
 }
 
-pub fn call_list_vmethod(
-    target: &Value,
-    method: &str,
-    args: &[Value],
-    mut ctx: Option<&mut Context>,
-) -> MethodResult {
-    if let Some(ref mut c) = ctx {
-        if let Some(f) = c.vmethods.list_ops.get(method).cloned() {
-            return match f(target, args, Some(*c)) {
-                Ok(v) => MethodResult::Value(v),
-                Err(e) => MethodResult::Error(e),
-            };
+pub fn vmethod_list_item(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    let idx = args.first().map(|v| v.to_int()).unwrap_or(0);
+    let resolved = if idx < 0 {
+        let pos = list_clone.len() as i64 + idx;
+        if pos < 0 {
+            None
+        } else {
+            list_clone.get(pos as usize).cloned()
         }
-    }
-    let global_fn = GLOBAL_VMETHODS.with(|g| g.borrow().list_ops.get(method).cloned());
-    if let Some(f) = global_fn {
-        return match f(target, args, ctx) {
-            Ok(v) => MethodResult::Value(v),
-            Err(e) => MethodResult::Error(e),
-        };
-    }
-
-    let list_clone: Vec<Value> = match target {
-        Value::List(l) => l.borrow().clone(),
-        Value::Object(o) => {
-            if let Some(l) = o.borrow().as_list() {
-                l.clone()
-            } else {
-                return MethodResult::NotFound;
-            }
-        }
-        _ => return MethodResult::NotFound,
+    } else {
+        list_clone.get(idx as usize).cloned()
     };
+    Ok(resolved.unwrap_or(Value::Undefined))
+}
 
-    match method {
-        "item" => {
-            let idx = args.first().map(|v| v.to_int()).unwrap_or(0);
-            let resolved = if idx < 0 {
-                let pos = list_clone.len() as i64 + idx;
-                if pos < 0 {
-                    None
-                } else {
-                    list_clone.get(pos as usize).cloned()
-                }
-            } else {
-                list_clone.get(idx as usize).cloned()
-            };
-            MethodResult::Value(resolved.unwrap_or(Value::Undefined))
-        }
-        "list" => MethodResult::Value(Value::list(list_clone)),
-        "hash" => {
-            if let Some(arg) = args.first() {
-                if arg.is_defined() {
-                    let mut count = arg.to_int();
-                    let mut m = HashMap::new();
-                    for item in list_clone {
-                        m.insert(count.to_string(), item);
-                        count += 1;
-                    }
-                    return MethodResult::Value(Value::hash(m));
-                }
-            }
+pub fn vmethod_list_list(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::list(extract_list_clone(target)))
+}
+
+pub fn vmethod_list_hash(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if let Some(arg) = args.first() {
+        if arg.is_defined() {
+            let mut count = arg.to_int();
             let mut m = HashMap::new();
-            let mut iter = list_clone.into_iter();
-            while let Some(k) = iter.next() {
-                let v = iter.next().unwrap_or(Value::Undefined);
-                m.insert(k.to_str(), v);
-            }
-            MethodResult::Value(Value::hash(m))
-        }
-        "size" => MethodResult::Value(Value::Int(list_clone.len() as i64)),
-        "empty" => MethodResult::Value(Value::Int(if list_clone.is_empty() { 1 } else { 0 })),
-        "max" => MethodResult::Value(Value::Int(list_clone.len() as i64 - 1)),
-        "defined" => {
-            if let Some(arg) = args.first() {
-                let s = arg.to_str();
-                if let Ok(idx) = s.trim().parse::<usize>() {
-                    let is_def = list_clone.get(idx).map(|v| v.is_defined()).unwrap_or(false);
-                    MethodResult::Value(Value::Int(if is_def { 1 } else { 0 }))
-                } else {
-                    MethodResult::Value(Value::Int(0))
-                }
-            } else {
-                MethodResult::Value(Value::Int(1))
-            }
-        }
-        "first" => {
-            if let Some(arg) = args.first() {
-                if arg.is_defined() {
-                    let n = (arg.to_int().max(0) as usize).min(list_clone.len());
-                    return MethodResult::Value(Value::list(list_clone[..n].to_vec()));
-                }
-            }
-            MethodResult::Value(list_clone.first().cloned().unwrap_or(Value::Undefined))
-        }
-        "last" => {
-            if let Some(arg) = args.first() {
-                if arg.is_defined() {
-                    let n = (arg.to_int().max(0) as usize).min(list_clone.len());
-                    let start = list_clone.len() - n;
-                    return MethodResult::Value(Value::list(list_clone[start..].to_vec()));
-                }
-            }
-            MethodResult::Value(list_clone.last().cloned().unwrap_or(Value::Undefined))
-        }
-        "reverse" => {
-            let mut rev = list_clone;
-            rev.reverse();
-            MethodResult::Value(Value::list(rev))
-        }
-        "join" => {
-            let joint = args
-                .first()
-                .and_then(|v| {
-                    if v.is_defined() {
-                        Some(v.to_str())
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| " ".to_string());
-            let parts: Vec<String> = list_clone.iter().map(|v| v.to_str()).collect();
-            MethodResult::Value(Value::Str(parts.join(&joint)))
-        }
-        "grep" => {
-            let pat = args.first().map(|v| v.to_str()).unwrap_or_default();
-            let mut out = Vec::new();
             for item in list_clone {
-                if text_search(&item.to_str(), &pat) {
-                    out.push(item);
-                }
+                m.insert(count.to_string(), item);
+                count += 1;
             }
-            MethodResult::Value(Value::list(out))
+            return Ok(Value::hash(m));
         }
-        "sort" => {
-            if list_clone.len() <= 1 {
-                return MethodResult::Value(Value::list(list_clone));
-            }
-            let fields: Vec<String> = args
-                .iter()
-                .filter(|v| v.is_defined())
-                .map(|v| v.to_str())
-                .collect();
-            let mut keyed: Vec<(Vec<String>, Value)> = list_clone
-                .into_iter()
-                .map(|item| {
-                    let keys = if fields.is_empty() {
-                        vec![get_sort_key(&item, None, &mut ctx).to_lowercase()]
-                    } else {
-                        fields
-                            .iter()
-                            .map(|f| get_sort_key(&item, Some(f), &mut ctx).to_lowercase())
-                            .collect()
-                    };
-                    (keys, item)
-                })
-                .collect();
-            keyed.sort_by(|a, b| a.0.cmp(&b.0));
-            MethodResult::Value(Value::list(keyed.into_iter().map(|(_, v)| v).collect()))
-        }
-        "nsort" => {
-            if list_clone.len() <= 1 {
-                return MethodResult::Value(Value::list(list_clone));
-            }
-            let fields: Vec<String> = args
-                .iter()
-                .filter(|v| v.is_defined())
-                .map(|v| v.to_str())
-                .collect();
-            let mut keyed: Vec<(Vec<f64>, Value)> = list_clone
-                .into_iter()
-                .map(|item| {
-                    let keys = if fields.is_empty() {
-                        vec![Value::parse_perl_number(&get_sort_key(&item, None, &mut ctx)).0]
-                    } else {
-                        fields
-                            .iter()
-                            .map(|f| {
-                                Value::parse_perl_number(&get_sort_key(&item, Some(f), &mut ctx)).0
-                            })
-                            .collect()
-                    };
-                    (keys, item)
-                })
-                .collect();
-            keyed.sort_by(|a, b| {
-                for (ka, kb) in a.0.iter().zip(b.0.iter()) {
-                    let ord = ka.partial_cmp(kb).unwrap_or(Ordering::Equal);
-                    if ord != Ordering::Equal {
-                        return ord;
-                    }
-                }
-                Ordering::Equal
-            });
-            MethodResult::Value(Value::list(keyed.into_iter().map(|(_, v)| v).collect()))
-        }
-        "unique" => {
-            let mut seen = HashSet::new();
-            let mut out = Vec::new();
-            for item in list_clone {
-                let s = item.to_str();
-                if seen.insert(s) {
-                    out.push(item);
-                }
-            }
-            MethodResult::Value(Value::list(out))
-        }
-        "import" => {
-            let mut additions = Vec::new();
-            for arg in args {
-                if let Value::List(l) = arg {
-                    additions.extend(l.borrow().iter().cloned().filter(|v| v.is_defined()));
-                }
-            }
-            if let Value::List(l) = target {
-                l.borrow_mut().extend(additions);
-            } else if let Value::Object(o) = target {
-                if let Some(l) = o.borrow_mut().as_list_mut() {
-                    l.extend(additions);
-                }
-            }
-            MethodResult::Value(target.clone())
-        }
-        "merge" => {
-            let mut out = list_clone;
-            for arg in args {
-                if let Value::List(l) = arg {
-                    out.extend(l.borrow().iter().cloned().filter(|v| v.is_defined()));
-                } else if arg.is_defined() {
-                    out.push(arg.clone());
-                }
-            }
-            MethodResult::Value(Value::list(out))
-        }
-        "slice" => {
-            let len = list_clone.len() as i64;
-            if len == 0 {
-                return MethodResult::Value(Value::list(Vec::new()));
-            }
-            let mut from = args
-                .first()
-                .and_then(|v| {
-                    if v.is_defined() {
-                        Some(v.to_int())
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(0);
-            let mut to = args
-                .get(1)
-                .and_then(|v| {
-                    if v.is_defined() {
-                        Some(v.to_int())
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(len - 1);
-            if from < 0 {
-                from += len;
-            }
-            if from < 0 {
-                from = 0;
-            }
-            if to < 0 {
-                to += len;
-            }
-            if to >= len {
-                to = len - 1;
-            }
-            if from > to || from >= len {
-                MethodResult::Value(Value::list(Vec::new()))
+    }
+    let mut m = HashMap::new();
+    let mut iter = list_clone.into_iter();
+    while let Some(k) = iter.next() {
+        let v = iter.next().unwrap_or(Value::Undefined);
+        m.insert(k.to_tt_string(), v);
+    }
+    Ok(Value::hash(m))
+}
+
+pub fn vmethod_list_size(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(extract_list_clone(target).len() as i64))
+}
+
+pub fn vmethod_list_empty(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(if extract_list_clone(target).is_empty() {
+        1
+    } else {
+        0
+    }))
+}
+
+pub fn vmethod_list_max(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    Ok(Value::Int(extract_list_clone(target).len() as i64 - 1))
+}
+
+pub fn vmethod_list_defined(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if let Some(arg) = args.first() {
+        let s = arg.to_tt_string();
+        if let Ok(idx) = s.trim().parse::<isize>() {
+            let actual = if idx < 0 {
+                list_clone.len() as isize + idx
             } else {
-                MethodResult::Value(Value::list(
-                    list_clone[from as usize..=to as usize].to_vec(),
-                ))
-            }
-        }
-        "splice" => {
-            let mut vec = list_clone;
-            let len = vec.len() as i64;
-            let removed = if args.is_empty() {
-                std::mem::take(&mut vec)
-            } else {
-                let mut offset = args[0].to_int();
-                if offset < 0 {
-                    offset = (len + offset).max(0);
-                }
-                let start = (offset as usize).min(vec.len());
-                if args.len() == 1 {
-                    vec.split_off(start)
-                } else {
-                    let length = args[1].to_int();
-                    let end = if length < 0 {
-                        ((len + length).max(start as i64) as usize).min(vec.len())
-                    } else {
-                        (start + length as usize).min(vec.len())
-                    };
-                    let mut replace_items = Vec::new();
-                    for rep in &args[2..] {
-                        if let Value::List(l) = rep {
-                            replace_items.extend(l.borrow().iter().cloned());
-                        } else {
-                            replace_items.push(rep.clone());
-                        }
-                    }
-                    vec.splice(start..end, replace_items).collect()
-                }
+                idx
             };
-            if let Value::List(l) = target {
-                *l.borrow_mut() = vec;
-            } else if let Value::Object(o) = target {
-                if let Some(l) = o.borrow_mut().as_list_mut() {
-                    *l = vec;
-                }
-            }
-            MethodResult::Value(Value::list(removed))
-        }
-        "push" => {
-            if let Value::List(l) = target {
-                l.borrow_mut().extend_from_slice(args);
-            } else if let Value::Object(o) = target {
-                if let Some(l) = o.borrow_mut().as_list_mut() {
-                    l.extend_from_slice(args);
-                }
-            }
-            MethodResult::Value(Value::Str(String::new()))
-        }
-        "pop" => {
-            let popped = if let Value::List(l) = target {
-                l.borrow_mut().pop()
-            } else if let Value::Object(o) = target {
-                o.borrow_mut().as_list_mut().and_then(|l| l.pop())
+            let is_def = if actual >= 0 {
+                list_clone
+                    .get(actual as usize)
+                    .map(|v| v.is_defined())
+                    .unwrap_or(false)
             } else {
-                None
+                false
             };
-            MethodResult::Value(popped.unwrap_or(Value::Undefined))
+            Ok(Value::Int(if is_def { 1 } else { 0 }))
+        } else {
+            Ok(Value::Int(0))
         }
-        "unshift" => {
-            if let Value::List(l) = target {
-                let mut borrow = l.borrow_mut();
-                for (i, item) in args.iter().cloned().enumerate() {
-                    borrow.insert(i, item);
-                }
-            } else if let Value::Object(o) = target {
-                if let Some(l) = o.borrow_mut().as_list_mut() {
-                    for (i, item) in args.iter().cloned().enumerate() {
-                        l.insert(i, item);
-                    }
-                }
-            }
-            MethodResult::Value(Value::Str(String::new()))
-        }
-        "shift" => {
-            let shifted = if let Value::List(l) = target {
-                let mut borrow = l.borrow_mut();
-                if borrow.is_empty() {
-                    None
-                } else {
-                    Some(borrow.remove(0))
-                }
-            } else if let Value::Object(o) = target {
-                o.borrow_mut().as_list_mut().and_then(|l| {
-                    if l.is_empty() {
-                        None
-                    } else {
-                        Some(l.remove(0))
-                    }
-                })
-            } else {
-                None
-            };
-            MethodResult::Value(shifted.unwrap_or(Value::Undefined))
-        }
-        _ => MethodResult::NotFound,
+    } else {
+        Ok(Value::Int(1))
     }
 }
 
-pub fn make_root_ops() -> HashMap<String, Value> {
-    let mut map = HashMap::new();
-    map.insert(
-        "inc".to_string(),
-        Value::function(|args, _, _| {
-            let v = args.first().map(|x| x.to_int()).unwrap_or(0);
-            Ok(Value::Int(v + 1))
-        }),
-    );
-    map.insert(
-        "dec".to_string(),
-        Value::function(|args, _, _| {
-            let v = args.first().map(|x| x.to_int()).unwrap_or(0);
-            Ok(Value::Int(v - 1))
-        }),
-    );
-    map.insert(
-        "import".to_string(),
-        Value::function(|args, _, ctx| {
-            if let (Some(Value::Hash(h)), Some(c)) = (args.first(), ctx) {
-                for (k, v) in h.borrow().iter() {
-                    c.stash.root_insert(k.clone(), v.clone());
+pub fn vmethod_list_first(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if let Some(arg) = args.first() {
+        if arg.is_defined() {
+            let n = (arg.to_int().max(0) as usize).min(list_clone.len());
+            return Ok(Value::list(list_clone[..n].to_vec()));
+        }
+    }
+    Ok(list_clone.first().cloned().unwrap_or(Value::Undefined))
+}
+
+pub fn vmethod_list_last(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if let Some(arg) = args.first() {
+        if arg.is_defined() {
+            let n = (arg.to_int().max(0) as usize).min(list_clone.len());
+            let start = list_clone.len() - n;
+            return Ok(Value::list(list_clone[start..].to_vec()));
+        }
+    }
+    Ok(list_clone.last().cloned().unwrap_or(Value::Undefined))
+}
+
+pub fn vmethod_list_reverse(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let mut rev = extract_list_clone(target);
+    rev.reverse();
+    Ok(Value::list(rev))
+}
+
+pub fn vmethod_list_join(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    let joint = args
+        .first()
+        .and_then(|v| {
+            if v.is_defined() {
+                Some(v.to_tt_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| " ".to_string());
+    let parts: Vec<String> = list_clone.iter().map(|v| v.to_tt_string()).collect();
+    Ok(Value::Str(parts.join(&joint)))
+}
+
+pub fn vmethod_list_grep(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    let pat = args.first().map(|v| v.to_tt_string()).unwrap_or_default();
+    let mut out = Vec::new();
+    for item in list_clone {
+        if text_search(&item.to_tt_string(), &pat) {
+            out.push(item);
+        }
+    }
+    Ok(Value::list(out))
+}
+
+pub fn vmethod_list_sort(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if list_clone.len() <= 1 {
+        return Ok(Value::list(list_clone));
+    }
+    let fields: Vec<String> = args
+        .iter()
+        .filter(|v| v.is_defined())
+        .map(|v| v.to_tt_string())
+        .collect();
+    let mut keyed: Vec<(Vec<String>, Value)> = list_clone
+        .into_iter()
+        .map(|item| {
+            let keys = if fields.is_empty() {
+                vec![get_sort_key(&item, None).to_lowercase()]
+            } else {
+                fields
+                    .iter()
+                    .map(|f| get_sort_key(&item, Some(f)).to_lowercase())
+                    .collect()
+            };
+            (keys, item)
+        })
+        .collect();
+    keyed.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(Value::list(keyed.into_iter().map(|(_, v)| v).collect()))
+}
+
+pub fn vmethod_list_nsort(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    if list_clone.len() <= 1 {
+        return Ok(Value::list(list_clone));
+    }
+    let fields: Vec<String> = args
+        .iter()
+        .filter(|v| v.is_defined())
+        .map(|v| v.to_tt_string())
+        .collect();
+    let mut keyed: Vec<(Vec<f64>, Value)> = list_clone
+        .into_iter()
+        .map(|item| {
+            let keys = if fields.is_empty() {
+                vec![Value::parse_perl_number(&get_sort_key(&item, None)).0]
+            } else {
+                fields
+                    .iter()
+                    .map(|f| Value::parse_perl_number(&get_sort_key(&item, Some(f))).0)
+                    .collect()
+            };
+            (keys, item)
+        })
+        .collect();
+    keyed.sort_by(|a, b| {
+        for (ka, kb) in a.0.iter().zip(b.0.iter()) {
+            let ord = ka.partial_cmp(kb).unwrap_or(Ordering::Equal);
+            if ord != Ordering::Equal {
+                return ord;
+            }
+        }
+        Ordering::Equal
+    });
+    Ok(Value::list(keyed.into_iter().map(|(_, v)| v).collect()))
+}
+
+pub fn vmethod_list_unique(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for item in list_clone {
+        let s = item.to_tt_string();
+        if seen.insert(s) {
+            out.push(item);
+        }
+    }
+    Ok(Value::list(out))
+}
+
+pub fn vmethod_list_import(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let mut additions = Vec::new();
+    for arg in args {
+        if let Value::List(l) = arg {
+            additions.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
+        } else if let Value::Object(o) = arg {
+            if let Some(l) = o.as_list() {
+                additions.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
+            }
+        }
+    }
+    if let Value::List(l) = target {
+        l.borrow_mut().extend(additions);
+    } else if let Value::Object(o) = target {
+        if let Some(l) = o.as_list() {
+            l.borrow_mut().extend(additions);
+        }
+    }
+    Ok(target.clone())
+}
+
+pub fn vmethod_list_merge(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let mut out = extract_list_clone(target);
+    for arg in args {
+        if let Value::List(l) = arg {
+            out.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
+        } else if let Value::Object(o) = arg {
+            if let Some(l) = o.as_list() {
+                out.extend(l.borrow().iter().filter(|&v| v.is_defined()).cloned());
+            } else if arg.is_defined() {
+                out.push(arg.clone());
+            }
+        } else if arg.is_defined() {
+            out.push(arg.clone());
+        }
+    }
+    Ok(Value::list(out))
+}
+
+pub fn vmethod_list_slice(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let list_clone = extract_list_clone(target);
+    let len = list_clone.len() as i64;
+    if len == 0 {
+        return Ok(Value::list(Vec::new()));
+    }
+    let mut from = args
+        .first()
+        .and_then(|v| {
+            if v.is_defined() {
+                Some(v.to_int())
+            } else {
+                None
+            }
+        })
+        .unwrap_or(0);
+    let mut to = args
+        .get(1)
+        .and_then(|v| {
+            if v.is_defined() {
+                Some(v.to_int())
+            } else {
+                None
+            }
+        })
+        .unwrap_or(len - 1);
+    if from < 0 {
+        from += len;
+    }
+    if from < 0 {
+        from = 0;
+    }
+    if to < 0 {
+        to += len;
+    }
+    if to >= len {
+        to = len - 1;
+    }
+    if from > to || from >= len {
+        Ok(Value::list(Vec::new()))
+    } else {
+        Ok(Value::list(
+            list_clone[from as usize..=to as usize].to_vec(),
+        ))
+    }
+}
+
+pub fn vmethod_list_splice(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    let mut vec = extract_list_clone(target);
+    let len = vec.len() as i64;
+    let removed = if args.is_empty() {
+        std::mem::take(&mut vec)
+    } else {
+        let mut offset = args[0].to_int();
+        if offset < 0 {
+            offset = (len + offset).max(0);
+        }
+        let start = (offset as usize).min(vec.len());
+        if args.len() == 1 {
+            vec.split_off(start)
+        } else {
+            let length = args[1].to_int();
+            let end = if length < 0 {
+                ((len + length).max(start as i64) as usize).min(vec.len())
+            } else {
+                (start + length as usize).min(vec.len())
+            };
+            let mut replace_items = Vec::new();
+            for rep in &args[2..] {
+                if let Value::List(l) = rep {
+                    replace_items.extend(l.borrow().iter().cloned());
+                } else {
+                    replace_items.push(rep.clone());
                 }
             }
-            Ok(Value::Str(String::new()))
-        }),
-    );
-    map
+            vec.splice(start..end, replace_items).collect()
+        }
+    };
+    if let Value::List(l) = target {
+        *l.borrow_mut() = vec;
+    } else if let Value::Object(o) = target {
+        if let Some(l) = o.as_list() {
+            *l.borrow_mut() = vec;
+        }
+    }
+    Ok(Value::list(removed))
+}
+
+pub fn vmethod_list_push(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Value::List(l) = target {
+        l.borrow_mut().extend_from_slice(args);
+    } else if let Value::Object(o) = target {
+        if let Some(l) = o.as_list() {
+            l.borrow_mut().extend_from_slice(args);
+        }
+    }
+    Ok(Value::Str(String::new()))
+}
+
+pub fn vmethod_list_pop(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let popped = if let Value::List(l) = target {
+        l.borrow_mut().pop()
+    } else if let Value::Object(o) = target {
+        o.as_list().and_then(|l| l.borrow_mut().pop())
+    } else {
+        None
+    };
+    Ok(popped.unwrap_or(Value::Undefined))
+}
+
+pub fn vmethod_list_unshift(target: &Value, args: &[Value]) -> Result<Value, ControlFlow> {
+    if let Value::List(l) = target {
+        let mut borrow = l.borrow_mut();
+        for (i, item) in args.iter().cloned().enumerate() {
+            borrow.insert(i, item);
+        }
+    } else if let Value::Object(o) = target {
+        if let Some(l) = o.as_list() {
+            let mut borrow = l.borrow_mut();
+            for (i, item) in args.iter().cloned().enumerate() {
+                borrow.insert(i, item);
+            }
+        }
+    }
+    Ok(Value::Str(String::new()))
+}
+
+pub fn vmethod_list_shift(target: &Value, _args: &[Value]) -> Result<Value, ControlFlow> {
+    let shifted = if let Value::List(l) = target {
+        let mut borrow = l.borrow_mut();
+        if borrow.is_empty() {
+            None
+        } else {
+            Some(borrow.remove(0))
+        }
+    } else if let Value::Object(o) = target {
+        o.as_list().and_then(|l| {
+            let mut borrow = l.borrow_mut();
+            if borrow.is_empty() {
+                None
+            } else {
+                Some(borrow.remove(0))
+            }
+        })
+    } else {
+        None
+    };
+    Ok(shifted.unwrap_or(Value::Undefined))
 }

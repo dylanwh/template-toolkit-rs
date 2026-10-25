@@ -98,7 +98,7 @@ pub struct Provider {
 
 #[bon::bon]
 impl Provider {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         include_path: Option<Vec<IncludePathItem>>,
         include_path_str: Option<String>,
@@ -233,10 +233,10 @@ impl Provider {
         let mut count = max_dirs;
 
         while !queue.is_empty() {
-            count -= 1;
             if count == 0 {
                 break;
             }
+            count -= 1;
             let item = queue.remove(0);
             match item {
                 IncludePathItem::Path(s) => {
@@ -447,11 +447,8 @@ impl Provider {
         };
 
         for dir in paths {
-            let full_path = if dir == "." {
-                name.to_string()
-            } else {
-                format!("{}/{}", dir.trim_end_matches('/'), name)
-            };
+            // File::Spec->catfile(".", $name) is "./$name"
+            let full_path = format!("{}/{}", dir.trim_end_matches('/'), name);
             match self.fetch_file(&full_path, name) {
                 FetchResult::Declined => continue,
                 other => return other,
@@ -475,12 +472,24 @@ impl Provider {
         let stat_ttl = self.stat_ttl.unwrap_or_else(|| get_stat_ttl() as u64);
         let now = current_unix_time();
 
-        if let Some(&last_nf) = self.notfound.borrow().get(path) {
+        let last_nf = self.notfound.borrow().get(path).copied();
+        if let Some(last_nf) = last_nf {
             if last_nf + stat_ttl > now {
                 return FetchResult::Declined;
             } else {
                 self.notfound.borrow_mut().remove(path);
             }
+        }
+
+        if Path::new(path).is_dir() {
+            return if self.tolerant {
+                FetchResult::Declined
+            } else {
+                FetchResult::Error(TemplateException::new(
+                    "file",
+                    format!("{}: not a file", path),
+                ))
+            };
         }
 
         let uncompiled_mtime = file_mtime(Path::new(path));

@@ -56,7 +56,7 @@ impl std::fmt::Debug for Service {
 
 #[bon::bon]
 impl Service {
-    #[builder]
+    #[builder(start_fn = builder, finish_fn = build)]
     pub fn build(
         context: Option<Context>,
         #[builder(default)] pre_process: Vec<String>,

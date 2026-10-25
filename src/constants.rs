@@ -17,11 +17,11 @@ pub const ERROR_PERL: &str = "perl";
 pub const ERROR_FILTER: &str = "filter";
 pub const ERROR_PLUGIN: &str = "plugin";
 
-pub const CHOMP_NONE: u32 = 0;
-pub const CHOMP_ONE: u32 = 1;
-pub const CHOMP_ALL: u32 = 1;
-pub const CHOMP_COLLAPSE: u32 = 2;
-pub const CHOMP_GREEDY: u32 = 3;
+pub const CHOMP_NONE: usize = 0;
+pub const CHOMP_ONE: usize = 1;
+pub const CHOMP_ALL: usize = 1;
+pub const CHOMP_COLLAPSE: usize = 2;
+pub const CHOMP_GREEDY: usize = 3;
 
 pub const DEBUG_OFF: u32 = 0;
 pub const DEBUG_ON: u32 = 1;
