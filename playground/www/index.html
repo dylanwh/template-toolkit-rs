@@ -21,6 +21,9 @@
     --ws: #a7b0c0;
     --rust: #b7410e;
     --rust-bg: #fbe9e1;
+    --hl-var: #7a3e9d;
+    --hl-str: #1d7a4a;
+    --hl-num: #a8520a;
     --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-code: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --code-size: 13.5px;
@@ -31,12 +34,14 @@
       --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
       --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
       --err-bg: #3a1d1b; --ws: #4f586b; --rust: #f08a5d; --rust-bg: #3b2118; color-scheme: dark;
+      --hl-var: #d7a6ff; --hl-str: #5fcf96; --hl-num: #f0a54a;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12151c; --surface: #1a1e27; --fg: #e3e7ef; --muted: #98a1b3; --line: #2c3240;
     --accent: #8eb1ff; --tag: #f0a54a; --tag-bg: #3a2a14; --ok: #5fcf96; --err: #ff8a80;
     --err-bg: #3a1d1b; --ws: #4f586b; --rust: #f08a5d; --rust-bg: #3b2118; color-scheme: dark;
+    --hl-var: #d7a6ff; --hl-str: #5fcf96; --hl-num: #f0a54a;
   }
 
   html, body { height: 100%; }
@@ -114,6 +119,21 @@
   .editor textarea::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: transparent; }
   .tt { color: var(--tag); background: var(--tag-bg); border-radius: 3px; }
   .tt-c { color: var(--muted); font-style: italic; }
+  /* Token colours from the engine's own lexer.  Colour only: the overlay
+     must keep the textarea's character widths. */
+  .tk { color: var(--accent); }
+  .tv { color: var(--hl-var); }
+  .ts, .tf { color: var(--hl-str); }
+  .ti { color: var(--tag); }
+  .tn { color: var(--hl-num); }
+  .to { color: var(--muted); }
+  /* Where parsing stopped: underlined, or a caret where the span is empty. */
+  .err { text-decoration: underline wavy var(--err); text-decoration-skip-ink: none; text-underline-offset: 3px; }
+  .err-at { position: relative; }
+  .err-at::after {
+    content: ""; position: absolute; left: -1px; top: 0.15em; height: 1.3em;
+    border-left: 2px solid var(--err);
+  }
 
   /* Output */
   .out { min-height: 0; overflow: auto; }
@@ -333,8 +353,47 @@ const TAG_RE = {
 
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+// Classes for the engine's token kinds (template_toolkit::parser::highlight).
+const KIND_CLASS = {
+  tag: "tt", comment: "tt tt-c", keyword: "tk", variable: "tv", string: "ts",
+  interpolation: "ti", number: "tn", filename: "tf", operator: "to",
+};
+
+// Highlight from the engine itself once it has loaded: its lexer's tokens,
+// and the span where parsing stops, if it does.
 function highlight() {
   const text = src.value;
+  let analysis = null;
+  if (ready) {
+    try { analysis = JSON.parse(analyze(text, options())); } catch {}
+  }
+  if (!analysis) return highlightTags(text);
+  const { tokens, error } = analysis;
+  const cuts = new Set([0, text.length]);
+  for (const [start, end] of tokens) { cuts.add(start); cuts.add(end); }
+  if (error) { cuts.add(error.start); cuts.add(error.end); }
+  const points = [...cuts].sort((a, b) => a - b);
+  const caret = error && error.start === error.end
+    ? `<span class="err-at" aria-hidden="true"></span>` : "";
+  let html = "", t = 0;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const [a, b] = [points[i], points[i + 1]];
+    if (caret && a === error.start) html += caret;
+    while (t < tokens.length && tokens[t][1] <= a) t++;
+    const classes = [];
+    if (t < tokens.length && tokens[t][0] <= a) classes.push(KIND_CLASS[tokens[t][2]] ?? "");
+    if (error && a >= error.start && b <= error.end) classes.push("err");
+    const chunk = escapeHtml(text.slice(a, b));
+    html += classes.length ? `<span class="${classes.join(" ")}">${chunk}</span>` : chunk;
+  }
+  if (caret && error.start === text.length) html += caret;
+  // A trailing newline needs a character after it to take up a line.
+  hl.innerHTML = html + "\u200b";
+  hl.scrollTop = src.scrollTop;
+}
+
+// Until the engine loads: tags by regex.
+function highlightTags(text) {
   const re = TAG_RE[$("tags").value] ?? TAG_RE[""];
   let html = "", last = 0;
   for (const m of text.matchAll(re)) {
@@ -511,7 +570,7 @@ $("example").addEventListener("change", () => {
   src.value = EXAMPLES[Number($("example").value)][1];
   run();
 });
-src.addEventListener("input", schedule);
+src.addEventListener("input", () => { highlight(); schedule(); });
 src.addEventListener("scroll", () => { hl.scrollTop = src.scrollTop; });
 src.addEventListener("keydown", (e) => {
   if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {

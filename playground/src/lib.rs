@@ -4,8 +4,9 @@
 use serde::Deserialize;
 use template_toolkit::{
     constants::{DebugFlagsInput, CHOMP_COLLAPSE, CHOMP_GREEDY, CHOMP_NONE, CHOMP_ONE},
+    parser::{lexer::Span, parser_build_builder as parser_state, Parser, ParserBuildBuilder},
     schema::SchemaOptions,
-    Template,
+    template_build_builder as template_state, Template, TemplateBuildBuilder,
 };
 use wasm_bindgen::prelude::*;
 
@@ -33,25 +34,103 @@ fn chomp(mode: Option<&str>) -> Result<usize, String> {
     }
 }
 
+impl Options {
+    fn from_js(options: JsValue) -> Result<Self, String> {
+        if options.is_undefined() || options.is_null() {
+            Ok(Self::default())
+        } else {
+            serde_wasm_bindgen::from_value(options).map_err(|e| e.to_string())
+        }
+    }
+
+    fn tag_style(&self) -> Option<String> {
+        self.tag_style.clone().filter(|s| !s.is_empty())
+    }
+}
+
+/// The page's options as a builder method (bon's custom methods, on
+/// builders from another crate): `Template::builder().options(&opts)?`.
+trait WithOptions {
+    /// The builder with those options set.
+    type Set;
+    fn options(self, opts: &Options) -> Result<Self::Set, String>;
+}
+
+impl<S: template_state::State> WithOptions for TemplateBuildBuilder<S>
+where
+    S::TagStyle: template_state::IsUnset,
+    S::PreChomp: template_state::IsUnset,
+    S::PostChomp: template_state::IsUnset,
+    S::Trim: template_state::IsUnset,
+    S::Interpolate: template_state::IsUnset,
+    S::Anycase: template_state::IsUnset,
+    S::Strict: template_state::IsUnset,
+    S::Debug: template_state::IsUnset,
+{
+    type Set = TemplateBuildBuilder<
+        template_state::SetDebug<
+            template_state::SetStrict<
+                template_state::SetAnycase<
+                    template_state::SetInterpolate<
+                        template_state::SetTrim<
+                            template_state::SetPostChomp<
+                                template_state::SetPreChomp<template_state::SetTagStyle<S>>,
+                            >,
+                        >,
+                    >,
+                >,
+            >,
+        >,
+    >;
+
+    fn options(self, opts: &Options) -> Result<Self::Set, String> {
+        Ok(self
+            .maybe_tag_style(opts.tag_style())
+            .pre_chomp(chomp(opts.pre_chomp.as_deref())?)
+            .post_chomp(chomp(opts.post_chomp.as_deref())?)
+            .trim(opts.trim)
+            .interpolate(opts.interpolate)
+            .anycase(opts.anycase)
+            .strict(opts.strict)
+            .maybe_debug(
+                opts.debug
+                    .clone()
+                    .filter(|s| !s.is_empty())
+                    .map(DebugFlagsInput::Text),
+            ))
+    }
+}
+
+/// The options that change how a template parses.
+impl<S: parser_state::State> WithOptions for ParserBuildBuilder<S>
+where
+    S::TagStyle: parser_state::IsUnset,
+    S::PreChomp: parser_state::IsUnset,
+    S::PostChomp: parser_state::IsUnset,
+    S::Interpolate: parser_state::IsUnset,
+    S::Anycase: parser_state::IsUnset,
+{
+    type Set = ParserBuildBuilder<
+        parser_state::SetAnycase<
+            parser_state::SetInterpolate<
+                parser_state::SetPostChomp<parser_state::SetPreChomp<parser_state::SetTagStyle<S>>>,
+            >,
+        >,
+    >;
+
+    fn options(self, opts: &Options) -> Result<Self::Set, String> {
+        Ok(self
+            .maybe_tag_style(opts.tag_style())
+            .pre_chomp(chomp(opts.pre_chomp.as_deref())?)
+            .post_chomp(chomp(opts.post_chomp.as_deref())?)
+            .interpolate(opts.interpolate)
+            .anycase(opts.anycase))
+    }
+}
+
 fn build(options: JsValue) -> Result<Template, String> {
-    let opts: Options = if options.is_undefined() || options.is_null() {
-        Options::default()
-    } else {
-        serde_wasm_bindgen::from_value(options).map_err(|e| e.to_string())?
-    };
     Template::builder()
-        .maybe_tag_style(opts.tag_style.filter(|s| !s.is_empty()))
-        .pre_chomp(chomp(opts.pre_chomp.as_deref())?)
-        .post_chomp(chomp(opts.post_chomp.as_deref())?)
-        .trim(opts.trim)
-        .interpolate(opts.interpolate)
-        .anycase(opts.anycase)
-        .strict(opts.strict)
-        .maybe_debug(
-            opts.debug
-                .filter(|s| !s.is_empty())
-                .map(DebugFlagsInput::Text),
-        )
+        .options(&Options::from_js(options)?)?
         .build()
         .map_err(|e| e.to_string())
 }
@@ -77,6 +156,43 @@ pub fn scan(template: &str, options: JsValue) -> Result<String, String> {
     let mut report = inferred.report();
     report["warnings"] = inferred.warnings.into();
     Ok(report.to_string())
+}
+
+/// Highlight and check `template` as the parser sees it, without running
+/// it: JSON with `tokens`, `[start, end, kind]` triples for the editor
+/// (kinds as in `template_toolkit::parser::highlight::Lexeme`), and
+/// `error`, null or `{message, start, end}` where parsing stops.  Offsets
+/// are UTF-16 code units, as JavaScript strings count them.
+#[wasm_bindgen]
+pub fn analyze(template: &str, options: JsValue) -> Result<String, String> {
+    let mut parser = Parser::builder()
+        .options(&Options::from_js(options)?)?
+        .build()?;
+
+    // UTF-16 offset of each byte offset that starts a character (or ends
+    // the text).
+    let mut utf16 = vec![0u32; template.len() + 1];
+    let mut units = 0;
+    for (i, c) in template.char_indices() {
+        utf16[i] = units;
+        units += c.len_utf16() as u32;
+    }
+    utf16[template.len()] = units;
+    let at = |offset: u32| utf16[offset as usize];
+
+    let tokens: Vec<_> = parser
+        .highlight(template)?
+        .into_iter()
+        .map(|(span, kind)| serde_json::json!([at(span.start), at(span.end), kind.name()]))
+        .collect();
+    let error = match parser.parse(template, None) {
+        Ok(_) => serde_json::Value::Null,
+        Err(message) => {
+            let span = parser.error_span.unwrap_or(Span::at(template.len()));
+            serde_json::json!({ "message": message, "start": at(span.start), "end": at(span.end) })
+        }
+    };
+    Ok(serde_json::json!({ "tokens": tokens, "error": error }).to_string())
 }
 
 /// The Template Toolkit version this port follows.
