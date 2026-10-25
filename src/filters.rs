@@ -166,6 +166,12 @@ impl Filters {
         }
     }
 
+    /// Whether `name` is one of the standard filters every Template has
+    /// (including `eval`/`evaltt`, which the context provides).
+    pub fn is_builtin(name: &str) -> bool {
+        matches!(name, "eval" | "evaltt") || Self::new().builtin_filter(name).is_some()
+    }
+
     fn builtin_filter(&self, name: &str) -> Option<FilterDef> {
         match name {
             "html" => Some(FilterDef::Static(Rc::new(|text: &str| {

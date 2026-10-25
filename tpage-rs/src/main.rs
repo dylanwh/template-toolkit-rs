@@ -16,6 +16,7 @@ use template_toolkit::{
     constants::{DebugFlagsInput, CHOMP_NONE, CHOMP_ONE},
     context::set_while_max,
     provider::IncludePathItem,
+    schema::SchemaOptions,
     service::ErrorSpec,
     value::Value,
     Template,
@@ -127,6 +128,18 @@ struct Args {
     /// Make the environment available as the 'env' variable
     #[arg(long)]
     envvars: bool,
+    /// Print a JSON Schema of each template's input variables instead of
+    /// processing it
+    #[arg(long)]
+    schema: bool,
+    /// Print what each template needs instead of processing it: the schema
+    /// of its input variables, and the modules (USE) and filters it uses
+    #[arg(long, conflicts_with = "schema")]
+    scan: bool,
+    /// With --schema or --scan, record where each variable is used
+    /// (x-tt-source)
+    #[arg(long = "schema_sources")]
+    schema_sources: bool,
     /// Maximum WHILE loop iterations
     #[arg(long = "while_max", alias = "template_directive_while_max")]
     while_max: Option<usize>,
@@ -231,6 +244,34 @@ fn run(args: &Args) -> Result<()> {
         args.files.clone()
     };
     let mut stdout = io::stdout().lock();
+    if args.schema || args.scan {
+        for file in &files {
+            let opts = SchemaOptions {
+                sources: args.schema_sources,
+                title: Some(file.clone()),
+            };
+            let inferred = if file == "-" {
+                let mut text = String::new();
+                io::stdin()
+                    .read_to_string(&mut text)
+                    .wrap_err("reading STDIN")?;
+                template.infer_schema_text(&text, &opts)
+            } else {
+                template.infer_schema(file, &opts)
+            }
+            .map_err(|e| eyre!("{e}"))?;
+            for w in &inferred.warnings {
+                eprintln!("tpage-rs: {w}");
+            }
+            let out = if args.scan {
+                inferred.report()
+            } else {
+                inferred.schema
+            };
+            writeln!(stdout, "{}", serde_json::to_string_pretty(&out)?)?;
+        }
+        return Ok(());
+    }
     for file in &files {
         let output = if file == "-" {
             let mut text = String::new();

@@ -12,6 +12,7 @@ pub mod parser;
 pub mod plugins;
 pub mod provider;
 pub mod regex_cache;
+pub mod schema;
 pub mod serde_value;
 pub mod service;
 pub mod stash;
