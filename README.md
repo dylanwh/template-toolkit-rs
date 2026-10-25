@@ -13,7 +13,7 @@ than the perl version and supports all features except `[% PERL %] / [% RAWPERL
 producing by-for-byte identical output. It also can run in a webbrowser wasm,
 see [playground][]
 
-[playground]: https://template-toolkit-rs.github.io
+[playground]: https://dylanwh.github.io/template-toolkit-rs/
 [beef::lean::Cow]: https://docs.rs/beef
 
 ## Quality
