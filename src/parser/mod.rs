@@ -11,7 +11,7 @@ use crate::{
             ArgsSpec, AssignTarget, BinOp, Block, Expr, IdentNode, NameArgs, NamedArg,
             ParsedDocument, SpannedStmt, Stmt, VariableTrace,
         },
-        grammar_tables::{RULES, STATES},
+        grammar_tables::{terminal_id, RULES, STATES},
         lexer::{
             get_tag_style, interpolate_text, split_text, tokenise_directive, ParserStyle,
             SplitChunk,
@@ -766,11 +766,9 @@ impl<'a> ParseSession<'a> {
                     }
                 }
 
-                let lookahead = token.as_deref().unwrap_or("");
-                let found = actions
-                    .iter()
-                    .find(|&&(k, _)| k == lookahead)
-                    .map(|&(_, act)| act);
+                let lookahead = terminal_id(token.as_deref().unwrap_or(""));
+                let found = lookahead
+                    .and_then(|id| actions.iter().find(|&&(k, _)| k == id).map(|&(_, act)| act));
                 found.or(state.default)
             } else {
                 state.default
@@ -810,7 +808,7 @@ impl<'a> ParseSession<'a> {
                 .gotos
                 .iter()
                 .find(|&&(lhs, _)| lhs == rule.lhs)
-                .map(|&(_, st)| st)
+                .map(|&(_, st)| usize::from(st))
                 .expect("valid goto state");
 
             stack.push((goto_state, coderet));
